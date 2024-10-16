@@ -172,7 +172,7 @@ namespace BrodClientAPI.Controller
                             RegisteredBusinessName = "",
                             AustralianBusinessNumber = "",
                             TypeofWork = "",
-                            Status = "new",
+                            Status = "New",
                             ReasonforDeclinedApplication = "",
                             AboutMeDescription = "",
                             Website = "",
@@ -242,9 +242,6 @@ namespace BrodClientAPI.Controller
                         return BadRequest("User already exists");
 
                     // Add the new user to the database
-                    if (userSignupDto.Role.ToLower() == "tradie") {
-                        userSignupDto.Status = "new";
-                    }
                     _context.User.InsertOne(userSignupDto);
 
                     // Return a success response
