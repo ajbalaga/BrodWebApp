@@ -49,218 +49,219 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-        [HttpPost("google-login-client")]
-        public async Task<IActionResult> GoogleLoginClient([FromBody] string idToken)
-        {
-            try
+            [HttpPost("google-login-client")]
+            public async Task<IActionResult> GoogleLoginClient([FromBody] string idToken)
             {
-                var googleClientId = _configuration["Google:ClientId"];
-                GoogleJsonWebSignature.Payload payload;
-
-                // Validate the Google token
                 try
                 {
-                    payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
+                    var googleClientId = _configuration["Google:ClientId"];
+                    GoogleJsonWebSignature.Payload payload;
+
+                    // Validate the Google token
+                    try
                     {
-                        Audience = new[] { googleClientId }
-                    });
-                }
-                catch (Exception)
-                {
-                    return Unauthorized(new { message = "Invalid Google token" });
-                }
-
-                // Check if the user already exists in the database
-                var existingUser = _context.User.Find(u => u.Email == payload.Email).FirstOrDefault();
-
-                if (existingUser == null)
-                {
-                    // If the user does not exist, create a new user
-                    var newUser = new User
-                    {
-                        _id = "",
-                        Email = payload.Email,
-                        Username = payload.GivenName,
-                        Role = "Client",
-                        FirstName = payload.GivenName,
-                        LastName = payload.FamilyName,
-                        ContactNumber = "",
-                        BusinessPostCode = "",
-                        City = "",
-                        State = "",
-                        PostalCode = "",
-                        ProximityToWork = "",
-                        RegisteredBusinessName = "",
-                        AustralianBusinessNumber = "",
-                        TypeofWork = "",
-                        Status = "",
-                        ReasonforDeclinedApplication = "",
-                        AboutMeDescription = "",
-                        Website = "",
-                        FacebookAccount = "",
-                        IGAccount = "",
-                        Services = [],
-                        ProfilePicture = $"{payload.Picture}",
-                        CertificationFilesUploaded = [],
-                        AvailabilityToWork = "",
-                        ActiveJobs = 0,
-                        PendingOffers = 0,
-                        CompletedJobs = 0,
-                        EstimatedEarnings = 0,
-                        CallOutRate = "",
-                        PublishedAds = 0
-                    };
-
-                    _context.User.InsertOne(newUser);
-                    existingUser = newUser;
-                }
-
-                // Generate a JWT token for the user
-                var token = GenerateJwtToken(existingUser);
-
-                // Return the token and user information
-                return Ok(new { token, userId = existingUser._id });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
-            }
-        }
-
-        [HttpPost("google-login-tradie")]
-        public async Task<IActionResult> GoogleLoginTradie([FromBody] string idToken)
-        {
-            try
-            {
-                var googleClientId = _configuration["Google:ClientId"];
-                GoogleJsonWebSignature.Payload payload;
-
-                // Validate the Google token
-                try
-                {
-                    payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
-                    {
-                        Audience = new[] { googleClientId }
-                    });
-                }
-                catch (Exception)
-                {
-                    return Unauthorized(new { message = "Invalid Google token" });
-                }
-
-                // Check if the user already exists in the database
-                var existingUser = _context.User.Find(u => u.Email == payload.Email).FirstOrDefault();
-
-                if (existingUser == null)
-                {
-                    // If the user does not exist, create a new user
-                    var newUser = new User
-                    {
-                        _id = "",
-                        Email = payload.Email,
-                        Username = payload.GivenName,
-                        Role = "Tradie",
-                        FirstName = payload.GivenName,
-                        LastName = payload.FamilyName,
-                        ContactNumber = "",
-                        BusinessPostCode = "",
-                        City = "",
-                        State = "",
-                        PostalCode = "",
-                        ProximityToWork = "",
-                        RegisteredBusinessName = "",
-                        AustralianBusinessNumber = "",
-                        TypeofWork = "",
-                        Status = "new",
-                        ReasonforDeclinedApplication = "",
-                        AboutMeDescription = "",
-                        Website = "",
-                        FacebookAccount = "",
-                        IGAccount = "",
-                        Services = [],
-                        ProfilePicture = $"{payload.Picture}",
-                        CertificationFilesUploaded = [],
-                        AvailabilityToWork = "",
-                        ActiveJobs = 0,
-                        PendingOffers = 0,
-                        CompletedJobs = 0,
-                        EstimatedEarnings = 0,
-                        CallOutRate = "",
-                        PublishedAds = 0
-                    };
-
-                    _context.User.InsertOne(newUser);
-                    existingUser = newUser;
-                }
-
-                // Generate a JWT token for the user
-                var token = GenerateJwtToken(existingUser);
-
-                // Return the token and user information
-                return Ok(new { token, userId = existingUser._id });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
-            }
-        }
-        private string GenerateJwtToken(User user)
-                {
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    var secretKey = _configuration["JwtSettings:SecretKey"];
-                    var issuer = _configuration["JwtSettings:Issuer"];
-                    var audience = _configuration["JwtSettings:Audience"];
-
-                    var key = Encoding.ASCII.GetBytes(secretKey);
-
-                    var tokenDescriptor = new SecurityTokenDescriptor
-                    {
-                        Subject = new ClaimsIdentity(new[]
+                        payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
                         {
-                        new Claim(ClaimTypes.Name, user.Username),
-                        new Claim(ClaimTypes.Role, user.Role)
-                    }),
-                        Expires = DateTime.UtcNow.AddHours(1),
-                        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-                        Issuer = issuer,
-                        Audience = audience
-                    };
+                            Audience = new[] { googleClientId }
+                        });
+                    }
+                    catch (Exception)
+                    {
+                        return Unauthorized(new { message = "Invalid Google token" });
+                    }
 
-                    var token = tokenHandler.CreateToken(tokenDescriptor);
-                    return tokenHandler.WriteToken(token);
+                    // Check if the user already exists in the database
+                    var existingUser = _context.User.Find(u => u.Email == payload.Email).FirstOrDefault();
+
+                    if (existingUser == null)
+                    {
+                        // If the user does not exist, create a new user
+                        var newUser = new User
+                        {
+                            _id = "",
+                            Email = payload.Email,
+                            Username = payload.GivenName,
+                            Role = "Client",
+                            FirstName = payload.GivenName,
+                            LastName = payload.FamilyName,
+                            ContactNumber = "",
+                            BusinessPostCode = "",
+                            City = "",
+                            State = "",
+                            PostalCode = "",
+                            ProximityToWork = "",
+                            RegisteredBusinessName = "",
+                            AustralianBusinessNumber = "",
+                            TypeofWork = "",
+                            Status = "",
+                            ReasonforDeclinedApplication = "",
+                            AboutMeDescription = "",
+                            Website = "",
+                            FacebookAccount = "",
+                            IGAccount = "",
+                            Services = [],
+                            ProfilePicture = $"{payload.Picture}",
+                            CertificationFilesUploaded = [],
+                            AvailabilityToWork = "",
+                            ActiveJobs = 0,
+                            PendingOffers = 0,
+                            CompletedJobs = 0,
+                            EstimatedEarnings = 0,
+                            CallOutRate = "",
+                            PublishedAds = 0
+                        };
+
+                        _context.User.InsertOne(newUser);
+                        existingUser = newUser;
+                    }
+                
+
+                    // Generate a JWT token for the user
+                    var token = GenerateJwtToken(existingUser);
+
+                    // Return the token and user information
+                    return Ok(new { token, userId = existingUser._id });
                 }
-
-        [HttpPost("signup")]
-        public IActionResult Signup([FromBody] User userSignupDto)
-        {
-            try
-            {
-                // Check if the user already exists
-                var existingUser = _context.User.Find(u => u.Email == userSignupDto.Email).FirstOrDefault();
-                if (existingUser != null)
-                    return BadRequest("User already exists");
-
-                // Add the new user to the database
-                if (userSignupDto.Role.ToLower() == "tradie") {
-                    userSignupDto.Status = "new";
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
                 }
-                _context.User.InsertOne(userSignupDto);
-
-                // Return a success response
-                return Ok(new { message = "Signup successful" });
             }
-            catch (Exception ex)
+
+            [HttpPost("google-login-tradie")]
+            public async Task<IActionResult> GoogleLoginTradie([FromBody] string idToken)
             {
-                return StatusCode(500, new { message = "An error occurred while signing up", error = ex.Message });
+                try
+                {
+                    var googleClientId = _configuration["Google:ClientId"];
+                    GoogleJsonWebSignature.Payload payload;
+
+                    // Validate the Google token
+                    try
+                    {
+                        payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
+                        {
+                            Audience = new[] { googleClientId }
+                        });
+                    }
+                    catch (Exception)
+                    {
+                        return Unauthorized(new { message = "Invalid Google token" });
+                    }
+
+                    // Check if the user already exists in the database
+                    var existingUser = _context.User.Find(u => u.Email == payload.Email).FirstOrDefault();
+
+                    if (existingUser == null)
+                    {
+                        // If the user does not exist, create a new user
+                        var newUser = new User
+                        {
+                            _id = "",
+                            Email = payload.Email,
+                            Username = payload.GivenName,
+                            Role = "Tradie",
+                            FirstName = payload.GivenName,
+                            LastName = payload.FamilyName,
+                            ContactNumber = "",
+                            BusinessPostCode = "",
+                            City = "",
+                            State = "",
+                            PostalCode = "",
+                            ProximityToWork = "",
+                            RegisteredBusinessName = "",
+                            AustralianBusinessNumber = "",
+                            TypeofWork = "",
+                            Status = "new",
+                            ReasonforDeclinedApplication = "",
+                            AboutMeDescription = "",
+                            Website = "",
+                            FacebookAccount = "",
+                            IGAccount = "",
+                            Services = [],
+                            ProfilePicture = $"{payload.Picture}",
+                            CertificationFilesUploaded = [],
+                            AvailabilityToWork = "",
+                            ActiveJobs = 0,
+                            PendingOffers = 0,
+                            CompletedJobs = 0,
+                            EstimatedEarnings = 0,
+                            CallOutRate = "",
+                            PublishedAds = 0
+                        };
+
+                        _context.User.InsertOne(newUser);
+                        existingUser = newUser;
+                    }
+
+                    // Generate a JWT token for the user
+                    var token = GenerateJwtToken(existingUser);
+
+                    // Return the token and user information
+                    return Ok(new { token, userId = existingUser._id });
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
+                }
             }
-        }
+            private string GenerateJwtToken(User user)
+                    {
+                        var tokenHandler = new JwtSecurityTokenHandler();
+                        var secretKey = _configuration["JwtSettings:SecretKey"];
+                        var issuer = _configuration["JwtSettings:Issuer"];
+                        var audience = _configuration["JwtSettings:Audience"];
 
+                        var key = Encoding.ASCII.GetBytes(secretKey);
 
-        private string HashPassword(string password)
+                        var tokenDescriptor = new SecurityTokenDescriptor
+                        {
+                            Subject = new ClaimsIdentity(new[]
+                            {
+                            new Claim(ClaimTypes.Name, user.Username),
+                            new Claim(ClaimTypes.Role, user.Role)
+                        }),
+                            Expires = DateTime.UtcNow.AddHours(1),
+                            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
+                            Issuer = issuer,
+                            Audience = audience
+                        };
+
+                        var token = tokenHandler.CreateToken(tokenDescriptor);
+                        return tokenHandler.WriteToken(token);
+                    }
+
+            [HttpPost("signup")]
+            public IActionResult Signup([FromBody] User userSignupDto)
             {
-                // Add your password hashing logic here, e.g., using BCrypt or another hashing algorithm.
-                return password; // Replace this with the actual hashed password.
+                try
+                {
+                    // Check if the user already exists
+                    var existingUser = _context.User.Find(u => u.Email == userSignupDto.Email).FirstOrDefault();
+                    if (existingUser != null)
+                        return BadRequest("User already exists");
+
+                    // Add the new user to the database
+                    if (userSignupDto.Role.ToLower() == "tradie") {
+                        userSignupDto.Status = "new";
+                    }
+                    _context.User.InsertOne(userSignupDto);
+
+                    // Return a success response
+                    return Ok(new { message = "Signup successful" });
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while signing up", error = ex.Message });
+                }
             }
+
+
+            private string HashPassword(string password)
+                {
+                    // Add your password hashing logic here, e.g., using BCrypt or another hashing algorithm.
+                    return password; // Replace this with the actual hashed password.
+                }
 
             //for OTP login and signup
             private void SendSmsOtp(string phoneNumber, string otp)
