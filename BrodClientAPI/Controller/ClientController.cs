@@ -90,10 +90,10 @@ namespace BrodClientAPI.Controller
                     updateDefinitions.Add(Builders<User>.Update.Set(u => u.PostalCode, clientProfile.PostalCode));
                 }
 
-                // Update Profile Picture if provided
-                if (!string.IsNullOrEmpty(clientProfile.ProfilePicture) && client.ProfilePicture != clientProfile.ProfilePicture)
+                
+                if (client.ProfilePicture != clientProfile.ProfilePicture)
                 {
-                    updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, clientProfile.ProfilePicture));
+                    updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, clientProfile.ProfilePicture ?? string.Empty));
                 }
 
                 if (updateDefinitions.Count == 0)

@@ -21,6 +21,7 @@ namespace BrodClientAPI.Models
         public string PostalCode { get; set; }
         public string ProximityToWork { get; set; }
         public string RegisteredBusinessName { get; set; }
+        public string BusinessAddress { get; set; }
         public string AustralianBusinessNumber { get; set; }
         public string TypeofWork { get; set; }
         public string Status { get; set; }

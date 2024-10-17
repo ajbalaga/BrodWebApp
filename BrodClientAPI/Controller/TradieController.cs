@@ -74,6 +74,10 @@ namespace BrodClientAPI.Controller
                 {
                     updateDefinitions.Add(Builders<User>.Update.Set(u => u.RegisteredBusinessName, tradieProfile.RegisteredBusinessName));
                 }
+                if (!string.IsNullOrEmpty(tradieProfile.BusinessAddress) && tradieProfile.BusinessAddress != tradie.BusinessAddress)
+                {
+                    updateDefinitions.Add(Builders<User>.Update.Set(u => u.BusinessAddress, tradieProfile.BusinessAddress));
+                }
                 if (!string.IsNullOrEmpty(tradieProfile.BusinessPostCode) && tradieProfile.BusinessPostCode != tradie.BusinessPostCode)
                 {
                     updateDefinitions.Add(Builders<User>.Update.Set(u => u.BusinessPostCode, tradieProfile.BusinessPostCode));
@@ -137,10 +141,10 @@ namespace BrodClientAPI.Controller
                 if (!string.IsNullOrEmpty(tradieProfile.ContactNumber) && tradieProfile.ContactNumber != tradieProfile.ContactNumber)
                 {
                     updateDefinitions.Add(Builders<User>.Update.Set(u => u.ContactNumber, tradieProfile.ContactNumber));
-                }                
-                if (!string.IsNullOrEmpty(tradieProfile.ProfilePicture) && tradieProfile.ProfilePicture != tradie.ProfilePicture)
+                }
+                if (tradieProfile.ProfilePicture != tradie.ProfilePicture)
                 {
-                    updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, tradieProfile.ProfilePicture));
+                    updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, tradieProfile.ProfilePicture ?? string.Empty));
                 }
                 if (tradieProfile.CertificationFilesUploaded != null)
                 {
