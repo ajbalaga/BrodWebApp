@@ -50,28 +50,12 @@ namespace BrodClientAPI.Controller
             }
 
             [HttpPost("google-login-client")]
-            public async Task<IActionResult> GoogleLoginClient([FromBody] string idToken)
+            public async Task<IActionResult> GoogleLoginClient([FromBody] GoogleLogin input)
             {
                 try
                 {
-                    var googleClientId = _configuration["Google:ClientId"];
-                    GoogleJsonWebSignature.Payload payload;
-
-                    // Validate the Google token
-                    try
-                    {
-                        payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
-                        {
-                            Audience = new[] { googleClientId }
-                        });
-                    }
-                    catch (Exception)
-                    {
-                        return Unauthorized(new { message = "Invalid Google token" });
-                    }
-
-                    // Check if the user already exists in the database
-                    var existingUser = _context.User.Find(u => u.Email == payload.Email).FirstOrDefault();
+                    // Check if the user already exists in the database asynchronously
+                    var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
 
                     if (existingUser == null)
                     {
@@ -79,11 +63,11 @@ namespace BrodClientAPI.Controller
                         var newUser = new User
                         {
                             _id = "",
-                            Email = payload.Email,
-                            Username = payload.GivenName,
+                            Email = input.email,
+                            Username = input.given_name,
                             Role = "Client",
-                            FirstName = payload.GivenName,
-                            LastName = payload.FamilyName,
+                            FirstName = input.given_name,
+                            LastName = input.family_name,
                             ContactNumber = "",
                             BusinessPostCode = "",
                             City = "",
@@ -99,9 +83,9 @@ namespace BrodClientAPI.Controller
                             Website = "",
                             FacebookAccount = "",
                             IGAccount = "",
-                            Services = [],
-                            ProfilePicture = $"{payload.Picture}",
-                            CertificationFilesUploaded = [],
+                            Services = [], // Initialize the list
+                            ProfilePicture = input.picture,
+                            CertificationFilesUploaded = new List<string>(), // Initialize the list
                             AvailabilityToWork = "",
                             ActiveJobs = 0,
                             PendingOffers = 0,
@@ -111,12 +95,12 @@ namespace BrodClientAPI.Controller
                             PublishedAds = 0
                         };
 
-                        _context.User.InsertOne(newUser);
+                        // Insert the new user asynchronously
+                        await _context.User.InsertOneAsync(newUser);
                         existingUser = newUser;
                     }
-                
 
-                    // Generate a JWT token for the user
+                    // Generate a JWT token for the user (assuming it's a synchronous method)
                     var token = GenerateJwtToken(existingUser);
 
                     // Return the token and user information
@@ -127,84 +111,70 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
                 }
             }
+
 
             [HttpPost("google-login-tradie")]
-            public async Task<IActionResult> GoogleLoginTradie([FromBody] string idToken)
+            public async Task<IActionResult> GoogleLoginTradie([FromBody] GoogleLogin input)
             {
-                try
+            try
+            {
+                // Check if the user already exists in the database asynchronously
+                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+
+                if (existingUser == null)
                 {
-                    var googleClientId = _configuration["Google:ClientId"];
-                    GoogleJsonWebSignature.Payload payload;
-
-                    // Validate the Google token
-                    try
+                    // If the user does not exist, create a new user
+                    var newUser = new User
                     {
-                        payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
-                        {
-                            Audience = new[] { googleClientId }
-                        });
-                    }
-                    catch (Exception)
-                    {
-                        return Unauthorized(new { message = "Invalid Google token" });
-                    }
+                        _id = "",
+                        Email = input.email,
+                        Username = input.given_name,
+                        Role = "Tradie",
+                        FirstName = input.given_name,
+                        LastName = input.family_name,
+                        ContactNumber = "",
+                        BusinessPostCode = "",
+                        City = "",
+                        State = "",
+                        PostalCode = "",
+                        ProximityToWork = "",
+                        RegisteredBusinessName = "",
+                        AustralianBusinessNumber = "",
+                        TypeofWork = "",
+                        Status = "",
+                        ReasonforDeclinedApplication = "",
+                        AboutMeDescription = "",
+                        Website = "",
+                        FacebookAccount = "",
+                        IGAccount = "",
+                        Services = [], // Initialize the list
+                        ProfilePicture = input.picture,
+                        CertificationFilesUploaded = new List<string>(), // Initialize the list
+                        AvailabilityToWork = "",
+                        ActiveJobs = 0,
+                        PendingOffers = 0,
+                        CompletedJobs = 0,
+                        EstimatedEarnings = 0,
+                        CallOutRate = "",
+                        PublishedAds = 0
+                    };
 
-                    // Check if the user already exists in the database
-                    var existingUser = _context.User.Find(u => u.Email == payload.Email).FirstOrDefault();
-
-                    if (existingUser == null)
-                    {
-                        // If the user does not exist, create a new user
-                        var newUser = new User
-                        {
-                            _id = "",
-                            Email = payload.Email,
-                            Username = payload.GivenName,
-                            Role = "Tradie",
-                            FirstName = payload.GivenName,
-                            LastName = payload.FamilyName,
-                            ContactNumber = "",
-                            BusinessPostCode = "",
-                            City = "",
-                            State = "",
-                            PostalCode = "",
-                            ProximityToWork = "",
-                            RegisteredBusinessName = "",
-                            AustralianBusinessNumber = "",
-                            TypeofWork = "",
-                            Status = "New",
-                            ReasonforDeclinedApplication = "",
-                            AboutMeDescription = "",
-                            Website = "",
-                            FacebookAccount = "",
-                            IGAccount = "",
-                            Services = [],
-                            ProfilePicture = $"{payload.Picture}",
-                            CertificationFilesUploaded = [],
-                            AvailabilityToWork = "",
-                            ActiveJobs = 0,
-                            PendingOffers = 0,
-                            CompletedJobs = 0,
-                            EstimatedEarnings = 0,
-                            CallOutRate = "",
-                            PublishedAds = 0
-                        };
-
-                        _context.User.InsertOne(newUser);
-                        existingUser = newUser;
-                    }
-
-                    // Generate a JWT token for the user
-                    var token = GenerateJwtToken(existingUser);
-
-                    // Return the token and user information
-                    return Ok(new { token, userId = existingUser._id });
+                    // Insert the new user asynchronously
+                    await _context.User.InsertOneAsync(newUser);
+                    existingUser = newUser;
                 }
-                catch (Exception ex)
-                {
-                    return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
-                }
+
+                // Generate a JWT token for the user (assuming it's a synchronous method)
+                var token = GenerateJwtToken(existingUser);
+
+                // Return the token and user information
+                return Ok(new { token, userId = existingUser._id });
             }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
+            }
+        }
             private string GenerateJwtToken(User user)
                     {
                         var tokenHandler = new JwtSecurityTokenHandler();
