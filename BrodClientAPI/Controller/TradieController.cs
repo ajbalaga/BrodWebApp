@@ -317,7 +317,7 @@ namespace BrodClientAPI.Controller
             }
         }
 
-        [HttpGet("job-ad-getDetails-byServiceID")]
+        [HttpPost("job-ad-getDetails-byServiceID")]
         public IActionResult GetJobDetailsByServiceId([FromBody] GetJobDetailsByServiceId getJobDetails)
         {
             try
@@ -445,7 +445,7 @@ namespace BrodClientAPI.Controller
             
         }
 
-        [HttpGet("GetJobsByStatus")]
+        [HttpPost("GetJobsByStatus")]
         public IActionResult GetFilteredJobs([FromBody] GetJobsByStatus jobsByStatus)
         {
             try

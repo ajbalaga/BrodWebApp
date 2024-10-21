@@ -332,14 +332,14 @@ namespace BrodClientAPI.Controller
             }
         }
 
-        [HttpGet("GetJobsByStatus")]
+        [HttpPost("GetJobsByStatus")]
         public IActionResult GetFilteredJobs([FromBody] GetJobsByStatus jobsByStatus)
         {
             try
             {
                 // Step 1: Find the client based on UserID and Role
                 var client = _context.User
-                    .Find(user => user._id == jobsByStatus.UserID && user.Role.ToLower() == "client")
+                    .Find(user => user._id == jobsByStatus.UserID && user.Role == "Client")
                     .FirstOrDefault();
 
                 if (client == null)
@@ -364,6 +364,7 @@ namespace BrodClientAPI.Controller
                 return StatusCode(500, new { message = "An error occurred while getting job post", error = ex.Message });
             }
         }
+
         [HttpPut("UpdateJobStatus")]
         public IActionResult UpdateJobStatus([FromBody] UpdateJobStatus updateJobStatus)
         {
