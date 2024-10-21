@@ -258,14 +258,16 @@ namespace BrodClientAPI.Controller
             {
                 return StatusCode(500, new { message = "An error occurred while adding job post", error = ex.Message });
             }
-        }               
+        }
 
         [HttpGet("publishedAds")]
-        public IActionResult GetPublishedAds([FromBody] GetPublishedAdByUserID getPublishedAd)
+        public IActionResult GetPublishedAds([FromQuery] string userId)
         {
             try
             {
-                var publishedJobPost = _context.Services.Find(service => service.UserID == getPublishedAd.UserId && service.IsActive == true).ToList();
+                var publishedJobPost = _context.Services
+                    .Find(service => service.UserID == userId && service.IsActive == true)
+                    .ToList();
 
                 return Ok(publishedJobPost);
             }
@@ -276,19 +278,22 @@ namespace BrodClientAPI.Controller
         }
 
         [HttpGet("unpublishedAds")]
-        public IActionResult GetUnpublishedAds([FromBody] GetPublishedAdByUserID getunPublishedAd)
+        public IActionResult GetUnpublishedAds([FromQuery] string userId)
         {
             try
             {
-                var publishedJobPost = _context.Services.Find(service => service.UserID == getunPublishedAd.UserId && service.IsActive == false).ToList();               
+                var unpublishedJobPost = _context.Services
+                    .Find(service => service.UserID == userId && service.IsActive == false)
+                    .ToList();
 
-                return Ok(publishedJobPost);
+                return Ok(unpublishedJobPost);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "An error occurred while getting unpublished job post", error = ex.Message });
             }
         }
+
 
         [HttpPut("job-ads/update-isActive")]
         public IActionResult UpdateIsActiveJobAds([FromBody] UpdateJobAdsIsActive updateJobAdsIsActive)
