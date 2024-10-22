@@ -449,21 +449,12 @@ namespace BrodClientAPI.Controller
         public IActionResult GetFilteredJobs([FromBody] GetJobsByStatus jobsByStatus)
         {
             try
-            {
-                // Step 1: Find the client based on UserID and Role
-                var tradie = _context.User
-                    .Find(user => user._id == jobsByStatus.UserID && user.Role.ToLower() == "tradie")
-                    .FirstOrDefault();
-
-                if (tradie == null)
-                {
-                    return NotFound(new { message = "Client not found" });
-                }
+            {               
 
                 // Step 2: Filter jobs based on Status and ClientID
                 var jobFilterBuilder = Builders<Jobs>.Filter;
-                var jobFilter = jobFilterBuilder.Eq(job => job.Status.ToLower().Replace(" ", ""), jobsByStatus.Status.ToLower().Replace(" ", "")) &
-                                jobFilterBuilder.Eq(job => job.ClientID, jobsByStatus.UserID);
+                var jobFilter = jobFilterBuilder.Eq(job => job.Status, jobsByStatus.Status) &
+                                jobFilterBuilder.Eq(job => job.TradieID, jobsByStatus.UserID);
 
                 var jobs = _context.Jobs.Find(jobFilter).ToListAsync().Result;
                 if (jobs.Count < 1)

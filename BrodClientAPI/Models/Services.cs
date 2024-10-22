@@ -8,7 +8,7 @@ namespace BrodClientAPI.Models
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string _id { get; set; }
-        public string UserID { get; set; } //tradie ID
+        public string UserID { get; set; }
         public string BusinessPostcode { get; set; }
         public string JobCategory { get; set; }
         public string JobAdTitle { get; set; }
