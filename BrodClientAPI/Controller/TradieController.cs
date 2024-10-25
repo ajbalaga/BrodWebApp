@@ -55,7 +55,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == tradieProfile.ID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 var updateDefinitions = new List<UpdateDefinition<User>>();
@@ -195,7 +195,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == tradieProfile.ID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 var updateDefinitions = new List<UpdateDefinition<User>>();
@@ -234,7 +234,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == jobPost.UserID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 var existingService = _context.Services.Find(service => service.JobAdTitle == jobPost.JobAdTitle).FirstOrDefault();
@@ -303,7 +303,7 @@ namespace BrodClientAPI.Controller
                 var publishedJobPost = _context.Services.Find(service => service._id == updateJobAdsIsActive.JobID).FirstOrDefault();
                 if (publishedJobPost == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 var updateDefinition = Builders<Services>.Update.Set(u => u.IsActive, updateJobAdsIsActive.IsActive);
@@ -325,7 +325,7 @@ namespace BrodClientAPI.Controller
                 var service = _context.Services.Find(service => service._id == getJobDetails.ServiceID).FirstOrDefault();
                 if (service == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
                 return Ok(service);
             }
@@ -343,7 +343,7 @@ namespace BrodClientAPI.Controller
                 var service = _context.Services.Find(service => service._id == updatedJobPost._id).FirstOrDefault();
                 if (service == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 var updateDefinitions = new List<UpdateDefinition<Services>>();
@@ -420,7 +420,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updatedJobPost.UserID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
                 if (updatedJobPost.IsActive == true) // + count for published job ad
                 {
@@ -459,7 +459,7 @@ namespace BrodClientAPI.Controller
                 var jobs = _context.Jobs.Find(jobFilter).ToListAsync().Result;
                 if (jobs.Count < 1)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 return Ok(jobs);
@@ -478,7 +478,7 @@ namespace BrodClientAPI.Controller
                 var job = _context.Jobs.Find(job => job._id == updateJobStatus.JobID).FirstOrDefault();
                 if (job == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
                
                 if (updateJobStatus.TradieID.ToLower() == "tradie")
@@ -486,7 +486,7 @@ namespace BrodClientAPI.Controller
                     var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
                     if (tradie == null)
                     {
-                        return NotFound();
+                        return NotFound(new object[0]);
                     }
 
                     // Update the status
@@ -537,7 +537,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updateEarning.TradieID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 // Update the status
@@ -560,7 +560,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 // Update the status
@@ -583,7 +583,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 // Update the status
@@ -606,7 +606,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    return NotFound(new object[0]);
                 }
 
                 // Update the status
