@@ -47,7 +47,7 @@ namespace BrodClientAPI.Controller
             var tradie = _context.User.Find(user => user._id == getTradieProfile.ID && user.Role == "Tradie").FirstOrDefault();
             if (tradie == null)
             {
-                return NotFound(new { message = "Tradie not found" });
+                return NotFound();
             }
             return Ok(tradie);
         }
@@ -58,7 +58,7 @@ namespace BrodClientAPI.Controller
             var tradie = _context.User.Find(user => user._id == updateTradieStatus.ID && user.Role == "Tradie").FirstOrDefault();
             if (tradie == null)
             {
-                return NotFound(new { message = "Tradie not found" });
+                return NotFound();
             }
 
             // Update the status

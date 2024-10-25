@@ -174,6 +174,7 @@ namespace BrodClientAPI.Controller
                 return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
             }
         }
+
             private string GenerateJwtToken(User user)
                     {
                         var tokenHandler = new JwtSecurityTokenHandler();
@@ -222,7 +223,6 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-
             private string HashPassword(string password)
                 {
                     // Add your password hashing logic here, e.g., using BCrypt or another hashing algorithm.
@@ -230,18 +230,67 @@ namespace BrodClientAPI.Controller
                 }
 
             //for OTP login and signup
-            private void SendSmsOtp(string phoneNumber, string otp)
+            private static Dictionary<string, (string Otp, DateTime ExpirationTime)> _otpStore = new Dictionary<string, (string, DateTime)>();
+
+            private void StoreOtp(string phoneNumber, string otp)
             {
-                var acctsid = _configuration["Twilio:ACCOUNT_SID"];
-                var token = _configuration["Twilio:AUTH_TOKEN"];
+                _otpStore[phoneNumber] = (otp, DateTime.UtcNow.AddMinutes(5));
+            }
 
-                TwilioClient.Init(acctsid, token);
+            [HttpPost("sms-otp")]
+            public IActionResult SendSMSOTP(string phoneNumber)
+            {
+                try
+                {
+                    var otp = new Random().Next(100000, 999999).ToString();
+                    var acctsid = _configuration["Twilio:ACCOUNT_SID"];
+                    var token = _configuration["Twilio:AUTH_TOKEN"];
+                    StoreOtp(phoneNumber, otp);
 
-                var message = MessageResource.Create(
-                    body: $"Your OTP code is {otp}",
-                    from: new PhoneNumber("Your Twilio Number"),
-                    to: new PhoneNumber(phoneNumber)
-                );
+
+                    TwilioClient.Init(acctsid, token);
+
+                    var messageOptions = new CreateMessageOptions(
+                    new PhoneNumber("+18777804236"));
+                    messageOptions.From = new PhoneNumber("+61256042821");
+                    messageOptions.Body = "112233";
+                    var message = MessageResource.Create(messageOptions);
+
+
+                return Ok("OTP verified successfully.");
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest("No OTP found for this phone number.");
+                }
+            }
+
+            [HttpPost("sms-verify-otp")]
+            public IActionResult VerifyOtp(string phoneNumber, string userEnteredOtp)
+            {
+                // Check if OTP exists for this phone number
+                if (_otpStore.TryGetValue(phoneNumber, out var otpData))
+                {
+                    // Check if the OTP has expired
+                    if (DateTime.UtcNow > otpData.ExpirationTime)
+                    {
+                        return BadRequest("OTP has expired.");
+                    }
+
+                    // Compare the stored OTP with the user-entered OTP
+                    if (otpData.Otp == userEnteredOtp)
+                    {
+                        return Ok("OTP verified successfully.");
+                    }
+                    else
+                    {
+                        return BadRequest("Invalid OTP.");
+                    }
+                }
+                else
+                {
+                    return BadRequest("No OTP found for this phone number.");
+                }
             }
 
             private async Task SendEmailOtp(string emailAddress, string otp)
@@ -268,8 +317,8 @@ namespace BrodClientAPI.Controller
                     var tradie = _context.User.Find(user => user._id == id).FirstOrDefault();
                     if (tradie == null)
                     {
-                        return NotFound(new { message = "Profile not found" });
-                    }
+                        return NotFound();
+                }
                     return Ok(tradie);
                 }
                 catch (Exception ex)
@@ -283,7 +332,7 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                    var services = _context.Services.Find(services => true).ToList(); // Fetch all users from MongoDB
+                    var services = _context.Services.Find(service => service.IsActive == true).ToList();
                     return Ok(services);
                 }
                 catch (Exception ex)
@@ -300,8 +349,8 @@ namespace BrodClientAPI.Controller
                     var service = _context.Services.Find(service => service._id == serviceProfile.ID).FirstOrDefault();
                     if (service == null)
                     {
-                        return NotFound(new { message = "Job Ad Post not found" });
-                    }
+                        return NotFound();
+                }
                     return Ok(service);
                 }
                 catch (Exception ex)

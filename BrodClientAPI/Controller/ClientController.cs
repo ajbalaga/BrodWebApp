@@ -47,7 +47,7 @@ namespace BrodClientAPI.Controller
                 var client = _context.User.Find(user => user._id == clientProfile._id && user.Role == "Client").FirstOrDefault();
                 if (client == null)
                 {
-                    return NotFound(new { message = "Client not found" });
+                    return NotFound();
                 }
 
                 var updateDefinitions = new List<UpdateDefinition<User>>();
@@ -232,13 +232,13 @@ namespace BrodClientAPI.Controller
                 var client = _context.User.Find(user => user._id == reviewDetails.ClientID && user.Role == "Client").FirstOrDefault();
                 if (client == null)
                 {
-                    return NotFound(new { message = "Client not found" });
+                    return NotFound();
                 }
 
                 var existingService = _context.Services.Find(service => service._id == reviewDetails.ServiceID).FirstOrDefault();
                 if (existingService == null)
-                {
-                    return NotFound(new { message = "Job Post Ad not found" });
+                {   
+                    return NotFound();
                 }
 
                 var review = new Reviews { 
@@ -288,13 +288,13 @@ namespace BrodClientAPI.Controller
                 var client = _context.User.Find(user => user._id == hireTradieDetails.ClientID && user.Role == "Client").FirstOrDefault();
                 if (client == null)
                 {
-                    return NotFound(new { message = "Client not found" });
+                    return NotFound();
                 }
 
                 var existingService = _context.Services.Find(service => service._id == hireTradieDetails.ServiceID).FirstOrDefault();
                 if (existingService == null)
                 {
-                    return NotFound(new { message = "Job Post Ad not found" });
+                    return NotFound();
                 }
 
                 var jobDetails = new Jobs
@@ -344,7 +344,7 @@ namespace BrodClientAPI.Controller
 
                 if (client == null)
                 {
-                    return NotFound(new { message = "Client not found" });
+                    return NotFound();
                 }
 
                 // Step 2: Filter jobs based on Status and ClientID
@@ -354,7 +354,7 @@ namespace BrodClientAPI.Controller
 
                 var jobs = _context.Jobs.Find(jobFilter).ToListAsync().Result;
                 if (jobs.Count < 1) {
-                    return NotFound(new { message = "Job/s not found" });
+                    return NotFound();
                 }
 
                 return Ok(jobs);
@@ -373,7 +373,7 @@ namespace BrodClientAPI.Controller
                 var job = _context.Jobs.Find(job => job._id == updateJobStatus.JobID).FirstOrDefault();
                 if (job == null)
                 {
-                    return NotFound(new { message = "Job not found" });
+                    return NotFound();
                 }
 
                 // Update the status
@@ -417,7 +417,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound(new { message = "Tradie not found" });
+                    return NotFound();
                 }
 
                 // Update the status
@@ -440,7 +440,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound(new { message = "Tradie not found" });
+                    return NotFound();
                 }
 
                 // Update the status
@@ -463,7 +463,7 @@ namespace BrodClientAPI.Controller
                 var tradie = _context.User.Find(user => user._id == updateEarning.TradieID && user.Role == "Tradie").FirstOrDefault();
                 if (tradie == null)
                 {
-                    return NotFound(new { message = "Tradie not found" });
+                    return NotFound();
                 }
 
                 // Update the status
