@@ -12,6 +12,11 @@ using Twilio.Types;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 using MongoDB.Bson;
+using Amazon;
+using Amazon.Pinpoint;
+using Amazon.Pinpoint.Model;
+using Amazon.Runtime;
+using Microsoft.VisualBasic;
 
 namespace BrodClientAPI.Controller
 {
@@ -21,12 +26,17 @@ namespace BrodClientAPI.Controller
         {
             private readonly ApiDbContext _context;
             private readonly IConfiguration _configuration;
+            private readonly AmazonPinpointClient _pinpointClient;
 
             public AuthController(ApiDbContext context, IConfiguration configuration)
                 {
                 _context = context;
                 _configuration = configuration;
-            }
+                var awsAccessKey = _configuration["AWS:AccessKey"];
+                var awsSecretKey = _configuration["AWS:SecretKey"];
+                var credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
+                _pinpointClient = new AmazonPinpointClient(credentials, RegionEndpoint.APSoutheast1);
+        }
 
             [HttpPost("login")]
             public IActionResult Login([FromBody] LoginInput login)
@@ -230,86 +240,233 @@ namespace BrodClientAPI.Controller
                 }
 
             //for OTP login and signup
-            private static Dictionary<string, (string Otp, DateTime ExpirationTime)> _otpStore = new Dictionary<string, (string, DateTime)>();
+            //private static Dictionary<string, (string Otp, DateTime ExpirationTime)> _otpStore = new Dictionary<string, (string, DateTime)>();
 
-            private void StoreOtp(string phoneNumber, string otp)
-            {
-                _otpStore[phoneNumber] = (otp, DateTime.UtcNow.AddMinutes(5));
-            }
+            //private void StoreOtp(string phoneNumber, string otp)
+            //{
+            //    _otpStore[phoneNumber] = (otp, DateTime.UtcNow.AddMinutes(5));
+            //}
 
             [HttpPost("sms-otp")]
-            public IActionResult SendSMSOTP(string phoneNumber)
+            public async Task<IActionResult> SendSMSOTP(string phoneNumber)
             {
                 try
                 {
                     var otp = new Random().Next(100000, 999999).ToString();
-                    var acctsid = _configuration["Twilio:ACCOUNT_SID"];
-                    var token = _configuration["Twilio:AUTH_TOKEN"];
-                    StoreOtp(phoneNumber, otp);
 
+                    var otpSms = new OTPSMS
+                    {
+                        phoneNumber = phoneNumber,
+                        OTP = otp,
+                        expirationMin = DateTime.Now.AddMinutes(5),
+                    };
 
-                    TwilioClient.Init(acctsid, token);
+                    _context.OtpSMS.InsertOne(otpSms);
 
-                    var messageOptions = new CreateMessageOptions(
-                    new PhoneNumber("+18777804236"));
-                    messageOptions.From = new PhoneNumber("+61256042821");
-                    messageOptions.Body = "112233";
-                    var message = MessageResource.Create(messageOptions);
+                    var request = new SendMessagesRequest
+                    {
+                        ApplicationId = _configuration["AWS:PinpointAppId"],
+                        MessageRequest = new MessageRequest
+                        {
+                            Addresses = new Dictionary<string, AddressConfiguration>
+                            {
+                                { phoneNumber, new AddressConfiguration { ChannelType = "SMS" } }
+                            },
+                            MessageConfiguration = new DirectMessageConfiguration
+                            {
+                                SMSMessage = new SMSMessage
+                                {
+                                    Body = $"Your OTP code is {otp}",
+                                    MessageType = "TRANSACTIONAL"
+                                }
+                            }
+                        }
+                    };
 
+                    var response = await _pinpointClient.SendMessagesAsync(request);
 
-                return Ok("OTP verified successfully.");
+                    return Ok("OTP sent successfully.");
                 }
                 catch (Exception ex)
                 {
-                    return BadRequest("No OTP found for this phone number.");
+                    return BadRequest($"Error sending OTP: {ex.Message}");
+                }
+            }
+
+            [HttpPost("email-otp")]
+            public async Task<IActionResult> SendEmailOTP(string email)
+            {
+                try
+                {
+                    // Generate OTP
+                    var otp = new Random().Next(100000, 999999).ToString();
+
+                    // Store OTP in database with expiration time
+                    var otpEmail = new OTPEMAIL
+                    {
+                        email = email,
+                        OTP = otp,
+                        expirationMin = DateTime.Now.AddMinutes(5)
+                    };
+
+                    _context.OtpEmail.InsertOne(otpEmail);
+
+                    // Create the request to send the email message
+                    var request = new SendMessagesRequest
+                    {
+                        ApplicationId = _configuration["AWS:PinpointAppId"],
+                        MessageRequest = new MessageRequest
+                        {
+                            Addresses = new Dictionary<string, AddressConfiguration>
+                    {
+                        { email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
+                    },
+                            MessageConfiguration = new DirectMessageConfiguration
+                            {
+                                EmailMessage = new EmailMessage
+                                {
+                                    FromAddress = _configuration["AWS:FromEmailAddress"],
+                                    SimpleEmail = new SimpleEmail
+                                    {
+                                        Subject = new SimpleEmailPart { Data = "Your OTP Code" },
+                                        HtmlPart = new SimpleEmailPart { Data = $"<h1>Your OTP code is {otp}</h1>" },
+                                        TextPart = new SimpleEmailPart { Data = $"Your OTP code is {otp}" }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    // Send the email through Pinpoint
+                    var response = await _pinpointClient.SendMessagesAsync(request);
+
+                    // Check if the email was successfully sent
+                    if (response.MessageResponse.Result[email].StatusCode == 200)
+                    {
+                        return Ok("OTP sent successfully.");
+                    }
+                    else
+                    {
+                        return BadRequest("Failed to send OTP.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"Error sending OTP: {ex.Message}");
+                }
+            }
+
+            [HttpPost("sms-email-otp")]
+            public IActionResult VerifyEmailOtp(string email, string userEnteredOtp)
+            {
+            // Check if OTP exists for this phone number
+
+                try
+                {
+                    var otpSms = _context.OtpEmail.Find(x => x.email == email && x.OTP == userEnteredOtp).FirstOrDefaultAsync();
+                    if (DateTime.UtcNow > otpSms.Result.expirationMin)
+                    {
+                        return BadRequest("OTP has expired.");
+                    }
+                    return Ok("OTP verified successfully.");
+                } catch (Exception ex)
+                {
+                    return BadRequest("Error: "+ex.Message);
                 }
             }
 
             [HttpPost("sms-verify-otp")]
-            public IActionResult VerifyOtp(string phoneNumber, string userEnteredOtp)
+            public IActionResult VerifySMSOtp(string phoneNumber, string userEnteredOtp)
             {
                 // Check if OTP exists for this phone number
-                if (_otpStore.TryGetValue(phoneNumber, out var otpData))
+
+                try
                 {
-                    // Check if the OTP has expired
-                    if (DateTime.UtcNow > otpData.ExpirationTime)
+                    var otpSms = _context.OtpSMS.Find(x => x.phoneNumber == phoneNumber && x.OTP == userEnteredOtp).FirstOrDefaultAsync();
+                    if (DateTime.UtcNow > otpSms.Result.expirationMin)
                     {
                         return BadRequest("OTP has expired.");
                     }
-
-                    // Compare the stored OTP with the user-entered OTP
-                    if (otpData.Otp == userEnteredOtp)
-                    {
-                        return Ok("OTP verified successfully.");
-                    }
-                    else
-                    {
-                        return BadRequest("Invalid OTP.");
-                    }
+                    return Ok("OTP verified successfully.");
                 }
-                else
+                catch (Exception ex)
                 {
-                    return BadRequest("No OTP found for this phone number.");
+                    return BadRequest("Error: " + ex.Message);
                 }
             }
 
-            private async Task SendEmailOtp(string emailAddress, string otp)
-            {
-                var apikey = _configuration["SendGrid:API_KEY"];
-                var email = _configuration["SendGrid:Email"];
-                var appName = _configuration["SendGrid:AppName"];
+        //public IActionResult SendSMSOTP(string phoneNumber)
+        //{
+        //    try
+        //    {
+        //        var otp = new Random().Next(100000, 999999).ToString();
+        //        var acctsid = _configuration["Twilio:ACCOUNT_SID"];
+        //        var token = _configuration["Twilio:AUTH_TOKEN"];
+        //        StoreOtp(phoneNumber, otp);
 
-                var client = new SendGridClient(apikey);
-                var from = new EmailAddress(email, appName);
-                var subject = "Your OTP Code";
-                var to = new EmailAddress(emailAddress);
-                var plainTextContent = $"Your OTP code is {otp}";
-                var htmlContent = $"<strong>Your OTP code is {otp}</strong>";
-                var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
-                var response = await client.SendEmailAsync(msg);
-            }
 
-            [HttpGet("userDetails")]
+        //        TwilioClient.Init(acctsid, token);
+
+        //        var messageOptions = new CreateMessageOptions(
+        //        new PhoneNumber("+18777804236"));
+        //        messageOptions.From = new PhoneNumber("+61256042821");
+        //        messageOptions.Body = "112233";
+        //        var message = MessageResource.Create(messageOptions);
+
+
+        //    return Ok("OTP verified successfully.");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest("No OTP found for this phone number.");
+        //    }
+        //}
+
+        //[HttpPost("sms-verify-otp")]
+        //    public IActionResult VerifyOtp(string phoneNumber, string userEnteredOtp)
+        //    {
+        //        // Check if OTP exists for this phone number
+        //        if (_otpStore.TryGetValue(phoneNumber, out var otpData))
+        //        {
+        //            // Check if the OTP has expired
+        //            if (DateTime.UtcNow > otpData.ExpirationTime)
+        //            {
+        //                return BadRequest("OTP has expired.");
+        //            }
+
+        //            // Compare the stored OTP with the user-entered OTP
+        //            if (otpData.Otp == userEnteredOtp)
+        //            {
+        //                return Ok("OTP verified successfully.");
+        //            }
+        //            else
+        //            {
+        //                return BadRequest("Invalid OTP.");
+        //            }
+        //        }
+        //        else
+        //        {
+        //            return BadRequest("No OTP found for this phone number.");
+        //        }
+        //    }
+
+        //    private async Task SendEmailOtp(string emailAddress, string otp)
+        //    {
+        //        var apikey = _configuration["SendGrid:API_KEY"];
+        //        var email = _configuration["SendGrid:Email"];
+        //        var appName = _configuration["SendGrid:AppName"];
+
+        //        var client = new SendGridClient(apikey);
+        //        var from = new EmailAddress(email, appName);
+        //        var subject = "Your OTP Code";
+        //        var to = new EmailAddress(emailAddress);
+        //        var plainTextContent = $"Your OTP code is {otp}";
+        //        var htmlContent = $"<strong>Your OTP code is {otp}</strong>";
+        //        var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+        //        var response = await client.SendEmailAsync(msg);
+        //    }
+
+        [HttpGet("userDetails")]
             public IActionResult GetProfileById(string id)
             {
                 try
@@ -318,7 +475,7 @@ namespace BrodClientAPI.Controller
                     if (tradie == null)
                     {
                         return NotFound();
-                }
+                    }
                     return Ok(tradie);
                 }
                 catch (Exception ex)
@@ -350,7 +507,7 @@ namespace BrodClientAPI.Controller
                     if (service == null)
                     {
                         return NotFound();
-                }
+                    }
                     return Ok(service);
                 }
                 catch (Exception ex)
@@ -358,6 +515,7 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while getting job post", error = ex.Message });
                 }
             }
+
             [HttpGet("FilteredServices")]
             public IActionResult GetFilteredServices([FromBody] JobAdPostFilter filterInput)
             {

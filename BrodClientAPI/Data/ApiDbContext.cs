@@ -26,6 +26,8 @@ namespace BrodClientAPI.Data
         public IMongoCollection<Services> Services => _database.GetCollection<Services>("Services");
         public IMongoCollection<Reviews> Reviews => _database.GetCollection<Reviews>("Reviews");
         public IMongoCollection<Jobs> Jobs => _database.GetCollection<Jobs>("Jobs");
+        public IMongoCollection<OTPSMS> OtpSMS => _database.GetCollection<OTPSMS>("OtpSMS");
+        public IMongoCollection<OTPEMAIL> OtpEmail => _database.GetCollection<OTPEMAIL>("OtpEmail");
 
         public void Initialize()
         {
@@ -36,6 +38,8 @@ namespace BrodClientAPI.Data
                 Services.Indexes.CreateOne(new CreateIndexModel<Services>(Builders<Services>.IndexKeys.Ascending(u => u._id)));
                 Reviews.Indexes.CreateOne(new CreateIndexModel<Reviews>(Builders<Reviews>.IndexKeys.Ascending(u => u._id)));
                 Jobs.Indexes.CreateOne(new CreateIndexModel<Jobs>(Builders<Jobs>.IndexKeys.Ascending(u => u._id)));
+                OtpSMS.Indexes.CreateOne(new CreateIndexModel<OTPSMS>(Builders<OTPSMS>.IndexKeys.Ascending(u => u._id)));
+                OtpEmail.Indexes.CreateOne(new CreateIndexModel<OTPEMAIL>(Builders<OTPEMAIL>.IndexKeys.Ascending(u => u._id)));
             }
             catch (Exception ex)
             {
