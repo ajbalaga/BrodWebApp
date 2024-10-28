@@ -457,11 +457,7 @@ namespace BrodClientAPI.Controller
                                 jobFilterBuilder.Eq(job => job.TradieID, jobsByStatus.UserID);
 
                 var jobs = _context.Jobs.Find(jobFilter).ToListAsync().Result;
-                if (jobs.Count < 1)
-                {
-                    return NotFound(new object[0]);
-                }
-
+                
                 return Ok(jobs);
             }
             catch (Exception ex)
@@ -478,7 +474,7 @@ namespace BrodClientAPI.Controller
                 var job = _context.Jobs.Find(job => job._id == updateJobStatus.JobID).FirstOrDefault();
                 if (job == null)
                 {
-                    return NotFound(new object[0]);
+                    return Ok(new object[0]);
                 }
                
                 if (updateJobStatus.TradieID.ToLower() == "tradie")
@@ -580,12 +576,7 @@ namespace BrodClientAPI.Controller
         {
             try
             {
-                var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
-                if (tradie == null)
-                {
-                    return NotFound(new object[0]);
-                }
-
+                
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.ActiveJobs, updateCount.Count);
                 _context.User.UpdateOne(user => user._id == updateCount.TradieID, updateDefinition);
@@ -603,12 +594,6 @@ namespace BrodClientAPI.Controller
         {
             try
             {
-                var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
-                if (tradie == null)
-                {
-                    return NotFound(new object[0]);
-                }
-
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.CompletedJobs, updateCount.Count);
                 _context.User.UpdateOne(user => user._id == updateCount.TradieID, updateDefinition);

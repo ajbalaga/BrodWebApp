@@ -338,14 +338,14 @@ namespace BrodClientAPI.Controller
             try
             {
                 // Step 1: Find the client based on UserID and Role
-                var client = _context.User
-                    .Find(user => user._id == jobsByStatus.UserID && user.Role == "Client")
-                    .FirstOrDefault();
+                //var client = _context.User
+                //    .Find(user => user._id == jobsByStatus.UserID && user.Role == "Client")
+                //    .FirstOrDefault();
 
-                if (client == null)
-                {
-                    return NotFound();
-                }
+                //if (client == null)
+                //{
+                //    return NotFound();
+                //}
 
                 // Step 2: Filter jobs based on Status and ClientID
                 var jobFilterBuilder = Builders<Jobs>.Filter;
@@ -353,10 +353,7 @@ namespace BrodClientAPI.Controller
                                 jobFilterBuilder.Eq(job => job.ClientID, jobsByStatus.UserID);
 
                 var jobs = _context.Jobs.Find(jobFilter).ToListAsync().Result;
-                if (jobs.Count < 1) {
-                    return NotFound();
-                }
-
+                
                 return Ok(jobs);
             }
             catch (Exception ex)
