@@ -466,7 +466,7 @@ namespace BrodClientAPI.Controller
         //        var response = await client.SendEmailAsync(msg);
         //    }
 
-        [HttpGet("userDetails")]
+            [HttpGet("userDetails")]
             public IActionResult GetProfileById(string id)
             {
                 try
@@ -498,7 +498,7 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-            [HttpGet("JobPostDetails")]
+            [HttpPost("JobPostDetails")]
             public IActionResult GetJobPostDetails([FromBody] OwnProfile serviceProfile)
             {
                 try
@@ -516,7 +516,7 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-            [HttpGet("FilteredServices")]
+            [HttpPost("FilteredServices")]
             public IActionResult GetFilteredServices([FromBody] JobAdPostFilter filterInput)
             {
                 try
