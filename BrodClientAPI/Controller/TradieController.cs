@@ -476,19 +476,44 @@ namespace BrodClientAPI.Controller
                 {
                     return Ok(new object[0]);
                 }
-               
-                
-                    var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
-                    if (tradie == null)
-                    {
-                        return Ok(new { message = "Tradie not found" });
+
+                var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
+                if (tradie == null)
+                {
+                    return Ok(new { message = "Tradie not found" });
                 }
 
-                    // Update the status
-                    var updateDefinition = Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status);
-                    _context.Jobs.UpdateOne(user => user._id == updateJobStatus.JobID, updateDefinition);
 
-                    if (updateJobStatus.Status.ToLower() == "in progress")
+                // Update the status
+
+                var updateDefinitions = new List<UpdateDefinition<Jobs>>();
+
+                // Update fields only if they are provided in updateJobStatus
+                if (updateJobStatus.Status != null && job.Status != updateJobStatus.Status)
+                {
+                    updateDefinitions.Add(Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status));
+                }
+                if (updateJobStatus.JobActionDate != null && job.JobActionDate != updateJobStatus.JobActionDate)
+                {
+                    updateDefinitions.Add(Builders<Jobs>.Update.Set(u => u.JobActionDate, updateJobStatus.JobActionDate));
+                }
+
+                if (updateDefinitions.Count == 0)
+                {
+                    return BadRequest(new { message = "No valid fields to update" });
+                }
+
+                var updateDefinition = Builders<Jobs>.Update.Combine(updateDefinitions);
+                var filter = Builders<Jobs>.Filter.Eq(u => u._id, updateJobStatus.JobID);
+
+                _context.Jobs.UpdateOne(filter, updateDefinition);
+
+
+
+
+
+
+                if (updateJobStatus.Status.ToLower() == "in progress")
                     {
                         var addCountJobActive = new UpdateCount { TradieID = updateJobStatus.TradieID, Count = tradie.ActiveJobs + 1 };
                         UpdateActiveJobsCount(addCountJobActive);

@@ -167,6 +167,7 @@ namespace BrodClientAPI.Controller
                 {
                     return NotFound();
                 }
+                var tradieDetails = _context.User.Find(user => user._id == existingService.UserID && user.Role == "Tradie").FirstOrDefault();
 
                 var jobDetails = new Jobs
                 {
@@ -187,13 +188,14 @@ namespace BrodClientAPI.Controller
                     ClientBudget = hireTradieDetails.ClientBudget,
                     BudgetCurrency = hireTradieDetails.BudgetCurrency,
                     JobAdDescription = existingService.DescriptionOfService,
-                    JobActionDate = hireTradieDetails.JobActionDate
+                    JobActionDate = hireTradieDetails.JobActionDate,
+                    TradieLocation = $"{tradieDetails.City},{tradieDetails.State} {tradieDetails.PostalCode}",
+                    Proximity = tradieDetails.ProximityToWork
                 };
                 var updateDefinitions = new List<UpdateDefinition<Jobs>>();
                 _context.Jobs.InsertOne(jobDetails);
 
-                var tradie = _context.User.Find(user => user._id == existingService.UserID && user.Role.ToLower() == "tradie").FirstOrDefault();
-                var addCountJobOffer = new UpdateCount { TradieID = existingService.UserID, Count = tradie.PendingOffers + 1 };
+                var addCountJobOffer = new UpdateCount { TradieID = existingService.UserID, Count = tradieDetails.PendingOffers + 1 };
                 UpdateJobOfferCount(addCountJobOffer);
 
                 return Ok(new { message = "Job offer submitted successfully" });
@@ -221,6 +223,8 @@ namespace BrodClientAPI.Controller
                     return NotFound();
                 }
 
+                var tradieDetails = _context.User.Find(user => user._id == existingService.UserID && user.Role == "Tradie").FirstOrDefault();
+
                 var jobDetails = new Jobs
                 {
                     _id = "",
@@ -239,7 +243,10 @@ namespace BrodClientAPI.Controller
                     CompletionDate = hireTradieDetails.CompletionDate,
                     ClientBudget = hireTradieDetails.ClientBudget,
                     BudgetCurrency = hireTradieDetails.BudgetCurrency,
-                    JobAdDescription = existingService.DescriptionOfService
+                    JobAdDescription = existingService.DescriptionOfService,
+                    JobActionDate = hireTradieDetails.JobActionDate,
+                    TradieLocation = $"{tradieDetails.City},{tradieDetails.State} {tradieDetails.PostalCode}",
+                    Proximity = tradieDetails.ProximityToWork
                 };
                 var updateDefinitions = new List<UpdateDefinition<Jobs>>();
                 _context.Jobs.InsertOne(jobDetails);
@@ -288,7 +295,7 @@ namespace BrodClientAPI.Controller
 
         [HttpPut("UpdateJobStatus")]
         public IActionResult UpdateJobStatus([FromBody] UpdateJobStatus updateJobStatus)
-        {
+        {   
             try
             {
                 var job = _context.Jobs.Find(job => job._id == updateJobStatus.JobID).FirstOrDefault();
@@ -297,10 +304,27 @@ namespace BrodClientAPI.Controller
                     return NotFound();
                 }
 
-                // Update the status
-                var updateDefinition = Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status)
-                                                            .Set(u => u.JobActionDate, updateJobStatus.JobActionDate);
-                _context.Jobs.UpdateOne(user => user._id == updateJobStatus.JobID, updateDefinition);
+                var updateDefinitions = new List<UpdateDefinition<Jobs>>();
+
+                // Update fields only if they are provided in updateJobStatus
+                if (updateJobStatus.Status != null && job.Status != updateJobStatus.Status)
+                {
+                    updateDefinitions.Add(Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status));
+                }
+                if (updateJobStatus.JobActionDate != null && job.JobActionDate != updateJobStatus.JobActionDate)
+                {
+                    updateDefinitions.Add(Builders<Jobs>.Update.Set(u => u.JobActionDate, updateJobStatus.JobActionDate));
+                }
+
+                if (updateDefinitions.Count == 0)
+                {
+                    return BadRequest(new { message = "No valid fields to update" });
+                }
+
+                var updateDefinition = Builders<Jobs>.Update.Combine(updateDefinitions);
+                var filter = Builders<Jobs>.Filter.Eq(u => u._id, updateJobStatus.JobID);
+
+                _context.Jobs.UpdateOne(filter, updateDefinition);
 
                 var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
 
