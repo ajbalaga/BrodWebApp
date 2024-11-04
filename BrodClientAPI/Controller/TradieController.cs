@@ -477,13 +477,12 @@ namespace BrodClientAPI.Controller
                     return Ok(new object[0]);
                 }
                
-                if (updateJobStatus.TradieID.ToLower() == "tradie")
-                {
+                
                     var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
                     if (tradie == null)
                     {
-                        return NotFound(new object[0]);
-                    }
+                        return Ok(new { message = "Tradie not found" });
+                }
 
                     // Update the status
                     var updateDefinition = Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status);
@@ -513,9 +512,9 @@ namespace BrodClientAPI.Controller
                     } //add count for completed jobs and update earning
 
                     return Ok(new { message = "Job status updated successfully" });
-                }
+                
 
-                return BadRequest(new { message = "User type not valid and/or check other input details" });
+                
 
 
             }
