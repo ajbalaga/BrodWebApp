@@ -14,5 +14,6 @@
         public string CompletionDate { get; set; }
         public decimal ClientBudget { get; set; }
         public string BudgetCurrency { get; set; }
+        public string JobActionDate { get; set; }
     }
 }

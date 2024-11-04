@@ -185,7 +185,9 @@ namespace BrodClientAPI.Controller
                     StartDate = hireTradieDetails.StartDate,
                     CompletionDate = hireTradieDetails.CompletionDate,
                     ClientBudget = hireTradieDetails.ClientBudget,
-                    BudgetCurrency = hireTradieDetails.BudgetCurrency
+                    BudgetCurrency = hireTradieDetails.BudgetCurrency,
+                    JobAdDescription = existingService.DescriptionOfService,
+                    JobActionDate = hireTradieDetails.JobActionDate
                 };
                 var updateDefinitions = new List<UpdateDefinition<Jobs>>();
                 _context.Jobs.InsertOne(jobDetails);
@@ -236,7 +238,8 @@ namespace BrodClientAPI.Controller
                     StartDate = hireTradieDetails.StartDate,
                     CompletionDate = hireTradieDetails.CompletionDate,
                     ClientBudget = hireTradieDetails.ClientBudget,
-                    BudgetCurrency = hireTradieDetails.BudgetCurrency
+                    BudgetCurrency = hireTradieDetails.BudgetCurrency,
+                    JobAdDescription = existingService.DescriptionOfService
                 };
                 var updateDefinitions = new List<UpdateDefinition<Jobs>>();
                 _context.Jobs.InsertOne(jobDetails);
@@ -295,7 +298,8 @@ namespace BrodClientAPI.Controller
                 }
 
                 // Update the status
-                var updateDefinition = Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status);
+                var updateDefinition = Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status)
+                                                            .Set(u => u.JobActionDate, updateJobStatus.JobActionDate);
                 _context.Jobs.UpdateOne(user => user._id == updateJobStatus.JobID, updateDefinition);
 
                 var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
@@ -316,6 +320,7 @@ namespace BrodClientAPI.Controller
                     var addEarning= new UpdateEstimatedEarning { TradieID = updateJobStatus.TradieID, Earning = earningAmount };
                     UpdateEstimatedEarningOfTradie(addEarning);
                 } // from in progress to completed (+ count for completed job) AND update estimated earning
+                
 
                 return Ok(new { message = "Job status updated successfully" });               
                 

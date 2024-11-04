@@ -26,7 +26,8 @@ namespace BrodClientAPI.Models
         public string? TradieName { get; set; }
         public string? Proximity { get; set; }
         public string? TradieLocation { get; set; }
-        public string? DateJobAccepted { get; set; }
+        public string? JobActionDate { get; set; }
+        public string? JobAdDescription { get; set; }
 
     }
 }
