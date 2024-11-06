@@ -17,6 +17,7 @@ using Amazon.Pinpoint;
 using Amazon.Pinpoint.Model;
 using Amazon.Runtime;
 using Microsoft.VisualBasic;
+using System.Diagnostics;
 
 namespace BrodClientAPI.Controller
 {
@@ -460,7 +461,30 @@ namespace BrodClientAPI.Controller
                     {
                         return NotFound();
                     }
-                    return Ok(service);
+
+                    var rating = await _context.Rating.Find(rating => rating.tradieId == service.ThumbnailImage).ToListAsync();
+                    if (rating == null)
+                    {
+                        return NotFound();
+                    }
+
+                    var ratingVal = 0;
+                    var count = 0;
+                    foreach (var ratingItem in rating)
+                    {
+                        ratingVal += ratingItem.rating;
+                        count++;
+                    }
+                    var totalRate = count > 0 ? ratingVal / count : 0;
+
+                    var jobPostWithRatings = new JobPostWithRatings
+                    {
+                        service = service,
+                        ratings = rating,
+                        TotalRating = totalRate
+                    };
+
+                return Ok(jobPostWithRatings);
                 }
                 catch (Exception ex)
                 {
