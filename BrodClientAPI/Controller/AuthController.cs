@@ -590,6 +590,46 @@ namespace BrodClientAPI.Controller
                     }
                 }
 
+            [HttpPost("AddMessage")]
+            public async Task<IActionResult> AddMessage([FromBody] Messages message)
+            {
+                try
+                {
+
+                    await _context.Messages.InsertOneAsync(message);
+
+                    return Ok(message);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while adding message", error = ex.Message });
+                }
+            }
+
+
+            [HttpPost("GetMessages")]
+            public async Task<IActionResult> GetMessage([FromBody] GetMessage getMessage)
+            {
+                try
+                {
+                var filter =    Builders<Messages>.Filter.And(
+                                Builders<Messages>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
+                                Builders<Messages>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
+                            );
+
+                var messages = await _context.Messages
+                    .Find(filter)
+                    .SortBy(mess => mess.TimeStamp)
+                    .ToListAsync();
+
+                return Ok(messages);
+            }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while gettting messages", error = ex.Message });
+                }
+            }
+
 
     }
 
