@@ -71,7 +71,7 @@ namespace BrodClientAPI.Controller
                     updateDefinitions.Add(Builders<User>.Update.Set(u => u.PostalCode, clientProfile.PostalCode));
                 }
 
-                
+
                 if (client.ProfilePicture != clientProfile.ProfilePicture)
                 {
                     updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, clientProfile.ProfilePicture ?? string.Empty));
@@ -94,80 +94,25 @@ namespace BrodClientAPI.Controller
 
             return Ok(new { message = "Client profile updated successfully" });
         }
-                
-        [HttpPost("AddReviewToJobPost")]
-        public IActionResult AddReviewToJobPost([FromBody] AddReviewToJobPostAd reviewDetails)
-        {
-            try
-            {
-                var client = _context.User.Find(user => user._id == reviewDetails.ClientID && user.Role == "Client").FirstOrDefault();
-                if (client == null)
-                {
-                    return NotFound();
-                }
-
-                var existingService = _context.Services.Find(service => service._id == reviewDetails.ServiceID).FirstOrDefault();
-                if (existingService == null)
-                {   
-                    return NotFound();
-                }
-
-                var review = new Reviews { 
-                _id = "",
-                ServiceID = reviewDetails.ServiceID,
-                ClientID = reviewDetails.ClientID,
-                ClientUserName = client.Username,
-                ClientCity = client.City,
-                ClientState = client.State,
-                ClientPostalCode = client.PostalCode,
-                StarRating = reviewDetails.StarRating,
-                ReviewDescription = reviewDetails.ReviewDescription                             
-                };
-                var updateDefinitions = new List<UpdateDefinition<Services>>();
-                _context.Reviews.InsertOne(review);
-
-                // Prepare the update to append the review to the ClientReviews list in the Service
-                var update = Builders<Services>.Update.Push(s => s.ClientReviews, new Review
-                {
-                    ReviewDescription = reviewDetails.ReviewDescription,
-                    StarRating = reviewDetails.StarRating,
-                    ClientID = reviewDetails.ClientID,
-                    ClientUserName = client.Username,
-                    ClientCity = client.City,
-                    ClientState = client.State,
-                    ClientPostalCode = client.PostalCode
-                });
-
-                // Update the service with the new review
-                _context.Services.UpdateOne(service => service._id == reviewDetails.ServiceID, update);
-
-
-                return Ok(new { message = "Review post added successfully" });
-
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred while adding review to job post", error = ex.Message });
-            }
-        }
 
         [HttpPost("HireTradie")]
-        public IActionResult HireTradie([FromBody] HireTradie hireTradieDetails)
+        public async Task<IActionResult> HireTradie([FromBody] HireTradie hireTradieDetails)
         {
             try
             {
-                var client = _context.User.Find(user => user._id == hireTradieDetails.ClientID && user.Role == "Client").FirstOrDefault();
+                var client = await _context.User.Find(user => user._id == hireTradieDetails.ClientID && user.Role == "Client").FirstOrDefaultAsync();
                 if (client == null)
                 {
                     return NotFound();
                 }
 
-                var existingService = _context.Services.Find(service => service._id == hireTradieDetails.ServiceID).FirstOrDefault();
+                var existingService = await _context.Services.Find(service => service._id == hireTradieDetails.ServiceID).FirstOrDefaultAsync();
                 if (existingService == null)
                 {
                     return NotFound();
                 }
-                var tradieDetails = _context.User.Find(user => user._id == existingService.UserID && user.Role == "Tradie").FirstOrDefault();
+
+                var tradieDetails = await _context.User.Find(user => user._id == existingService.UserID && user.Role == "Tradie").FirstOrDefaultAsync();
 
                 var jobDetails = new Jobs
                 {
@@ -175,8 +120,8 @@ namespace BrodClientAPI.Controller
                     ServiceID = hireTradieDetails.ServiceID,
                     ClientID = hireTradieDetails.ClientID,
                     TradieID = existingService.UserID,
-                    Status= "Pending",
-                    DescriptionServiceNeeded= hireTradieDetails.DescriptionServiceNeeded,
+                    Status = "Pending",
+                    DescriptionServiceNeeded = hireTradieDetails.DescriptionServiceNeeded,
                     ClientName = $"{client.FirstName} {client.LastName}",
                     ClientContactNumber = hireTradieDetails.ClientContactNumber,
                     ClientCity = client.City,
@@ -192,38 +137,38 @@ namespace BrodClientAPI.Controller
                     TradieLocation = $"{tradieDetails.City},{tradieDetails.State} {tradieDetails.PostalCode}",
                     Proximity = tradieDetails.ProximityToWork
                 };
-                var updateDefinitions = new List<UpdateDefinition<Jobs>>();
-                _context.Jobs.InsertOne(jobDetails);
+
+                await _context.Jobs.InsertOneAsync(jobDetails);
 
                 var addCountJobOffer = new UpdateCount { TradieID = existingService.UserID, Count = tradieDetails.PendingOffers + 1 };
-                UpdateJobOfferCount(addCountJobOffer);
+                await UpdateJobOfferCount(addCountJobOffer);
 
                 return Ok(new { message = "Job offer submitted successfully" });
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "An error occurred while sending job offer", error = ex.Message });
             }
         }
+
         [HttpPost("BookmarkJob")]
-        public IActionResult BookmarkJob([FromBody] HireTradie hireTradieDetails)
+        public async Task<IActionResult> BookmarkJob([FromBody] HireTradie hireTradieDetails)
         {
             try
             {
-                var client = _context.User.Find(user => user._id == hireTradieDetails.ClientID && user.Role == "Client").FirstOrDefault();
+                var client = await _context.User.Find(user => user._id == hireTradieDetails.ClientID && user.Role == "Client").FirstOrDefaultAsync();
                 if (client == null)
                 {
                     return NotFound();
                 }
 
-                var existingService = _context.Services.Find(service => service._id == hireTradieDetails.ServiceID).FirstOrDefault();
+                var existingService = await _context.Services.Find(service => service._id == hireTradieDetails.ServiceID).FirstOrDefaultAsync();
                 if (existingService == null)
                 {
                     return NotFound();
                 }
 
-                var tradieDetails = _context.User.Find(user => user._id == existingService.UserID && user.Role == "Tradie").FirstOrDefault();
+                var tradieDetails = await _context.User.Find(user => user._id == existingService.UserID && user.Role == "Tradie").FirstOrDefaultAsync();
 
                 var jobDetails = new Jobs
                 {
@@ -248,43 +193,43 @@ namespace BrodClientAPI.Controller
                     TradieLocation = $"{tradieDetails.City},{tradieDetails.State} {tradieDetails.PostalCode}",
                     Proximity = tradieDetails.ProximityToWork
                 };
-                var updateDefinitions = new List<UpdateDefinition<Jobs>>();
-                _context.Jobs.InsertOne(jobDetails);
 
-                var tradie = _context.User.Find(user => user._id == existingService.UserID && user.Role.ToLower() == "tradie").FirstOrDefault();
+                await _context.Jobs.InsertOneAsync(jobDetails);
+
+                var tradie = await _context.User.Find(user => user._id == existingService.UserID && user.Role.ToLower() == "tradie").FirstOrDefaultAsync();
                 var addCountJobOffer = new UpdateCount { TradieID = existingService.UserID, Count = tradie.PendingOffers + 1 };
-                UpdateJobOfferCount(addCountJobOffer);
+                await UpdateJobOfferCount(addCountJobOffer);
 
                 return Ok(new { message = "Job offer submitted successfully" });
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "An error occurred while sending job offer", error = ex.Message });
             }
-        }        
+        }
 
         [HttpPost("GetJobsByStatus")]
-        public IActionResult GetFilteredJobs([FromBody] GetJobsByStatus jobsByStatus)
+        public async Task<IActionResult> GetFilteredJobs([FromBody] GetJobsByStatus jobsByStatus)
         {
             try
             {
-                // Step 2: Filter jobs based on Status and ClientID
                 var jobFilterBuilder = Builders<Jobs>.Filter;
                 var jobFilter = jobFilterBuilder.Eq(job => job.Status, jobsByStatus.Status) &
                                 jobFilterBuilder.Eq(job => job.ClientID, jobsByStatus.UserID);
 
-                var jobs = _context.Jobs.Find(jobFilter).ToListAsync().Result;
-                var updatedJobs = new List<Jobs> { };
-                foreach (var job in jobs) { 
+                var jobs = await _context.Jobs.Find(jobFilter).ToListAsync();
+                var updatedJobs = new List<Jobs>();
+
+                foreach (var job in jobs)
+                {
                     var tradie = job.TradieID;
-                    var tradieDetails = _context.User.Find(user => user._id == tradie && user.Role == "Tradie").FirstOrDefault();
+                    var tradieDetails = await _context.User.Find(user => user._id == tradie && user.Role == "Tradie").FirstOrDefaultAsync();
                     job.TradieLocation = $"{tradieDetails.City},{tradieDetails.State} {tradieDetails.PostalCode}";
                     job.Proximity = tradieDetails.ProximityToWork;
                     job.TradieName = $"{tradieDetails.FirstName} {tradieDetails.LastName}";
                     updatedJobs.Add(job);
                 }
-                
+
                 return Ok(updatedJobs);
             }
             catch (Exception ex)
@@ -294,11 +239,11 @@ namespace BrodClientAPI.Controller
         }
 
         [HttpPut("UpdateJobStatus")]
-        public IActionResult UpdateJobStatus([FromBody] UpdateJobStatus updateJobStatus)
-        {   
+        public async Task<IActionResult> UpdateJobStatus([FromBody] UpdateJobStatus updateJobStatus)
+        {
             try
             {
-                var job = _context.Jobs.Find(job => job._id == updateJobStatus.JobID).FirstOrDefault();
+                var job = await _context.Jobs.Find(job => job._id == updateJobStatus.JobID).FirstOrDefaultAsync();
                 if (job == null)
                 {
                     return NotFound();
@@ -306,7 +251,6 @@ namespace BrodClientAPI.Controller
 
                 var updateDefinitions = new List<UpdateDefinition<Jobs>>();
 
-                // Update fields only if they are provided in updateJobStatus
                 if (updateJobStatus.Status != null && job.Status != updateJobStatus.Status)
                 {
                     updateDefinitions.Add(Builders<Jobs>.Update.Set(u => u.Status, updateJobStatus.Status));
@@ -324,31 +268,28 @@ namespace BrodClientAPI.Controller
                 var updateDefinition = Builders<Jobs>.Update.Combine(updateDefinitions);
                 var filter = Builders<Jobs>.Filter.Eq(u => u._id, updateJobStatus.JobID);
 
-                _context.Jobs.UpdateOne(filter, updateDefinition);
+                await _context.Jobs.UpdateOneAsync(filter, updateDefinition);
 
-                var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
+                var tradie = await _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefaultAsync();
 
-                if (updateJobStatus.Status.ToLower() == "cancelled") 
+                if (updateJobStatus.Status.ToLower() == "cancelled")
                 {
                     var jobCount = tradie.PendingOffers == 0 ? 0 : tradie.PendingOffers - 1;
                     var countVal = new UpdateCount { TradieID = updateJobStatus.TradieID, Count = jobCount };
-                        UpdateJobOfferCount(countVal);
-                } // -1 for pending offer count for tradie
+                    await UpdateJobOfferCount(countVal);
+                }
 
-                if (updateJobStatus.Status.ToLower() == "completed") 
+                if (updateJobStatus.Status.ToLower() == "completed")
                 {
                     var addCountJobCompleted = new UpdateCount { TradieID = updateJobStatus.TradieID, Count = tradie.CompletedJobs + 1 };
-                    UpdateCompletetedJobs(addCountJobCompleted);
+                    await UpdateCompletedJobs(addCountJobCompleted);
 
                     var earningAmount = Convert.ToDecimal(tradie.EstimatedEarnings) + Convert.ToDecimal(job.ClientBudget);
-                    var addEarning= new UpdateEstimatedEarning { TradieID = updateJobStatus.TradieID, Earning = earningAmount };
-                    UpdateEstimatedEarningOfTradie(addEarning);
-                } // from in progress to completed (+ count for completed job) AND update estimated earning
-                
+                    var addEarning = new UpdateEstimatedEarning { TradieID = updateJobStatus.TradieID, Earning = earningAmount };
+                    await UpdateEstimatedEarningOfTradie(addEarning);
+                }
 
-                return Ok(new { message = "Job status updated successfully" });               
-                
-
+                return Ok(new { message = "Job status updated successfully" });
             }
             catch (Exception ex)
             {
@@ -356,12 +297,34 @@ namespace BrodClientAPI.Controller
             }
         }
 
-        // job offer count
-        private IActionResult UpdateJobOfferCount([FromBody] UpdateCount updateCount)
+        [HttpPost("AddRating")]
+        public async Task<IActionResult> AddRating([FromBody] Rating rating)
         {
             try
             {
-                var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
+                var client = await _context.User.Find(user => user._id == rating.clientId && user.Role == "Client").FirstOrDefaultAsync();
+                if (client == null)
+                {
+                    return NotFound();
+                }
+                rating.clientLocation = $"{client.City},{client.State} {client.PostalCode}";
+
+                await _context.Rating.InsertOneAsync(rating);
+
+                return Ok(rating);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while adding rating", error = ex.Message });
+            }
+        }
+
+        // job offer count
+        private async Task<IActionResult> UpdateJobOfferCount([FromBody] UpdateCount updateCount)
+        {
+            try
+            {
+                var tradie = await _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
                     return NotFound();
@@ -369,7 +332,7 @@ namespace BrodClientAPI.Controller
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.PendingOffers, updateCount.Count);
-                _context.User.UpdateOne(user => user._id == updateCount.TradieID, updateDefinition);
+                await _context.User.UpdateOneAsync(user => user._id == updateCount.TradieID, updateDefinition);
 
                 return Ok(new { message = "Job offer count updated: " + updateCount.Count.ToString() });
             }
@@ -380,11 +343,11 @@ namespace BrodClientAPI.Controller
         }
 
         // completed jobs
-        private IActionResult UpdateCompletetedJobs([FromBody] UpdateCount updateCount)
+        private async Task<IActionResult> UpdateCompletedJobs([FromBody] UpdateCount updateCount)
         {
             try
             {
-                var tradie = _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefault();
+                var tradie = await _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
                     return NotFound();
@@ -392,7 +355,7 @@ namespace BrodClientAPI.Controller
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.CompletedJobs, updateCount.Count);
-                _context.User.UpdateOne(user => user._id == updateCount.TradieID, updateDefinition);
+                await _context.User.UpdateOneAsync(user => user._id == updateCount.TradieID, updateDefinition);
 
                 return Ok(new { message = "Completed jobs count updated: " + updateCount.Count.ToString() });
             }
@@ -403,11 +366,11 @@ namespace BrodClientAPI.Controller
         }
 
         // estimated earning
-        private IActionResult UpdateEstimatedEarningOfTradie([FromBody] UpdateEstimatedEarning updateEarning)
+        private async Task<IActionResult> UpdateEstimatedEarningOfTradie([FromBody] UpdateEstimatedEarning updateEarning)
         {
             try
             {
-                var tradie = _context.User.Find(user => user._id == updateEarning.TradieID && user.Role == "Tradie").FirstOrDefault();
+                var tradie = await _context.User.Find(user => user._id == updateEarning.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
                     return NotFound();
@@ -415,7 +378,7 @@ namespace BrodClientAPI.Controller
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.EstimatedEarnings, updateEarning.Earning);
-                _context.User.UpdateOne(user => user._id == updateEarning.TradieID, updateDefinition);
+                await _context.User.UpdateOneAsync(user => user._id == updateEarning.TradieID, updateDefinition);
 
                 return Ok(new { message = "Earning updated: " + updateEarning.Earning.ToString() });
             }
@@ -425,133 +388,60 @@ namespace BrodClientAPI.Controller
             }
         }
 
-        //[HttpGet("myDetails")]
-        //public IActionResult GetClientById([FromBody] OwnProfile getTradieProfile)
+
+        //[HttpPost("AddReviewToJobPost")]
+        //public IActionResult AddReviewToJobPost([FromBody] AddReviewToJobPostAd reviewDetails)
         //{
         //    try
         //    {
-        //        var client = _context.User.Find(user => user._id == getTradieProfile.ID && user.Role == "Client").FirstOrDefault();
+        //        var client = _context.User.Find(user => user._id == reviewDetails.ClientID && user.Role == "Client").FirstOrDefault();
         //        if (client == null)
         //        {
-        //            return NotFound(new { message = "Client not found" });
+        //            return NotFound();
         //        }
-        //        return Ok(client);
+
+        //        var existingService = _context.Services.Find(service => service._id == reviewDetails.ServiceID).FirstOrDefault();
+        //        if (existingService == null)
+        //        {   
+        //            return NotFound();
+        //        }
+
+        //        var review = new Reviews { 
+        //        _id = "",
+        //        ServiceID = reviewDetails.ServiceID,
+        //        ClientID = reviewDetails.ClientID,
+        //        ClientUserName = client.Username,
+        //        ClientCity = client.City,
+        //        ClientState = client.State,
+        //        ClientPostalCode = client.PostalCode,
+        //        StarRating = reviewDetails.StarRating,
+        //        ReviewDescription = reviewDetails.ReviewDescription                             
+        //        };
+        //        var updateDefinitions = new List<UpdateDefinition<Services>>();
+        //        _context.Reviews.InsertOne(review);
+
+        //        // Prepare the update to append the review to the ClientReviews list in the Service
+        //        var update = Builders<Services>.Update.Push(s => s.ClientReviews, new Review
+        //        {
+        //            ReviewDescription = reviewDetails.ReviewDescription,
+        //            StarRating = reviewDetails.StarRating,
+        //            ClientID = reviewDetails.ClientID,
+        //            ClientUserName = client.Username,
+        //            ClientCity = client.City,
+        //            ClientState = client.State,
+        //            ClientPostalCode = client.PostalCode
+        //        });
+
+        //        // Update the service with the new review
+        //        _context.Services.UpdateOne(service => service._id == reviewDetails.ServiceID, update);
+
+
+        //        return Ok(new { message = "Review post added successfully" });
+
         //    }
         //    catch (Exception ex)
         //    {
-        //        return StatusCode(500, new { message = "An error occurred while getting Client details", error = ex.Message });
-        //    }
-
-        //}
-
-
-        //[HttpGet("allServices")]
-        //public IActionResult GetAllServices()
-        //{
-        //    try
-        //    {
-        //        var services = _context.Services.Find(services => true).ToList(); // Fetch all users from MongoDB
-        //        return Ok(services);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = "An error occurred while retrieving services", error = ex.Message });
-        //    }
-        //}
-
-        //[HttpGet("FilteredServices")]
-        //public IActionResult GetFilteredServices([FromBody] JobAdPostFilter filterInput)
-        //{
-        //    try
-        //    {
-        //        var filterBuilder = Builders<Services>.Filter;
-        //        var filter = filterBuilder.Empty; // Start with an empty filter
-
-        //        // Filter by Postcode
-        //        if (!string.IsNullOrEmpty(filterInput.Postcode))
-        //        {
-        //            filter &= filterBuilder.Eq(s => s.BusinessPostcode, filterInput.Postcode);
-        //        }
-
-        //        // Filter by JobCategory (if multiple categories are provided)
-        //        if (filterInput.JobCategories != null && filterInput.JobCategories.Count > 0)
-        //        {
-        //            filter &= filterBuilder.In(s => s.JobCategory, filterInput.JobCategories);
-        //        }
-
-        //        // Filter by Keywords (match JobAdTitle using a case-insensitive regex)
-        //        if (!string.IsNullOrEmpty(filterInput.Keywords))
-        //        {
-        //            var regexFilter = new BsonRegularExpression(filterInput.Keywords, "i"); // Case-insensitive search
-        //            filter &= filterBuilder.Regex(s => s.JobAdTitle, regexFilter);
-        //        }
-
-
-        //        // Filter by PricingStartsAt (range between min and max)
-        //        if (filterInput.PricingStartsMax> filterInput.PricingStartsMin)
-        //        {
-        //            filter &= filterBuilder.Eq(s => s.PricingOption, "Hourly");
-        //            filter &= filterBuilder.Gte(s => s.PricingStartsAt, filterInput.PricingStartsMin.ToString()) &
-        //                      filterBuilder.Lte(s => s.PricingStartsAt, filterInput.PricingStartsMax.ToString());
-        //        }
-
-        //        var filteredServices = _context.Services.Find(filter).ToList();
-
-        //        var userIds = filteredServices.Select(s => s.UserID).Distinct().ToList();
-
-
-        //        var userFilterBuilder = Builders<User>.Filter;
-        //        var userFilter = userFilterBuilder.In(u => u._id, userIds);
-
-        //        if (filterInput.CallOutRateMax > filterInput.CallOutRateMin)
-        //        {
-        //            userFilter &= userFilterBuilder.Gte(u => u.CallOutRate, filterInput.CallOutRateMin.Value.ToString()) &
-        //                          userFilterBuilder.Lte(u => u.CallOutRate, filterInput.CallOutRateMin.Value.ToString());
-        //        }
-
-        //        // Filter by ProximityToWork (min and max range)
-        //        if (filterInput.ProximityToWorkMax > filterInput.ProximityToWorkMin)
-        //        {
-        //            userFilter &= userFilterBuilder.Gte(u => u.ProximityToWork, filterInput.ProximityToWorkMin.Value.ToString()) &
-        //                          userFilterBuilder.Lte(u => u.ProximityToWork, filterInput.ProximityToWorkMax.Value.ToString());
-        //        }
-
-        //        // Filter by AvailabilityToWork (multiple answers)
-        //        if (!String.IsNullOrEmpty(filterInput.AvailabilityToWork[0]) && filterInput.AvailabilityToWork.Count > 0)
-        //        {
-        //            userFilter &= userFilterBuilder.In(u => u.AvailabilityToWork, filterInput.AvailabilityToWork);
-        //        }
-
-        //        // Fetch the filtered users that match the user filters
-        //        var filteredUsers = _context.User.Find(userFilter).ToList();
-        //        var finalUserIds = filteredUsers.Select(u => u._id).ToList();
-
-        //        // Step 4: Filter the services again based on the final list of UserIDs from the User filter
-        //        var finalServices = filteredServices.Where(s => finalUserIds.Contains(s.UserID)).ToList();
-
-        //        return Ok(finalServices);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = "An error occurred while retrieving services", error = ex.Message });
-        //    }
-        //}
-
-        //[HttpGet("JobPostDetails")]
-        //public IActionResult GetJobPostDetails([FromBody] OwnProfile serviceProfile)
-        //{
-        //    try
-        //    {
-        //        var service = _context.Services.Find(service => service._id == serviceProfile.ID).FirstOrDefault();
-        //        if (service == null)
-        //        {
-        //            return NotFound(new { message = "Job Ad Post not found" });
-        //        }
-        //        return Ok(service);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = "An error occurred while getting job post", error = ex.Message });
+        //        return StatusCode(500, new { message = "An error occurred while adding review to job post", error = ex.Message });
         //    }
         //}
     }

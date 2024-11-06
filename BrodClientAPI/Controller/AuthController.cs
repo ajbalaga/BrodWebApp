@@ -39,12 +39,11 @@ namespace BrodClientAPI.Controller
         }
 
             [HttpPost("login")]
-            public IActionResult Login([FromBody] LoginInput login)
+            public async Task<IActionResult> Login([FromBody] LoginInput login)
             {
                 try
                 {
-                    
-                    var user = _context.User.Find(u => u.Email == login.Email && u.Password == login.Password).FirstOrDefault();
+                    var user = await _context.User.Find(u => u.Email == login.Email && u.Password == login.Password).FirstOrDefaultAsync();
 
                     if (user == null)
                         return Unauthorized();
@@ -57,6 +56,7 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while logging in", error = ex.Message });
                 }
             }
+
 
             [HttpPost("google-login-client")]
             public async Task<IActionResult> GoogleLoginClient([FromBody] GoogleLogin input)
@@ -186,43 +186,43 @@ namespace BrodClientAPI.Controller
         }
 
             private string GenerateJwtToken(User user)
-                    {
-                        var tokenHandler = new JwtSecurityTokenHandler();
-                        var secretKey = _configuration["JwtSettings:SecretKey"];
-                        var issuer = _configuration["JwtSettings:Issuer"];
-                        var audience = _configuration["JwtSettings:Audience"];
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var secretKey = _configuration["JwtSettings:SecretKey"];
+            var issuer = _configuration["JwtSettings:Issuer"];
+            var audience = _configuration["JwtSettings:Audience"];
 
-                        var key = Encoding.ASCII.GetBytes(secretKey);
+            var key = Encoding.ASCII.GetBytes(secretKey);
 
-                        var tokenDescriptor = new SecurityTokenDescriptor
-                        {
-                            Subject = new ClaimsIdentity(new[]
-                            {
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
                             new Claim(ClaimTypes.Name, user.Username),
                             new Claim(ClaimTypes.Role, user.Role)
                         }),
-                            Expires = DateTime.UtcNow.AddHours(1),
-                            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-                            Issuer = issuer,
-                            Audience = audience
-                        };
+                Expires = DateTime.UtcNow.AddHours(1),
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
+                Issuer = issuer,
+                Audience = audience
+            };
 
-                        var token = tokenHandler.CreateToken(tokenDescriptor);
-                        return tokenHandler.WriteToken(token);
-                    }
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
 
             [HttpPost("signup")]
-            public IActionResult Signup([FromBody] User userSignupDto)
+            public async Task<IActionResult> Signup([FromBody] User userSignupDto)
             {
                 try
                 {
                     // Check if the user already exists
-                    var existingUser = _context.User.Find(u => u.Email == userSignupDto.Email).FirstOrDefault();
+                    var existingUser = await _context.User.Find(u => u.Email == userSignupDto.Email).FirstOrDefaultAsync();
                     if (existingUser != null)
                         return BadRequest("User already exists");
 
                     // Add the new user to the database
-                    _context.User.InsertOne(userSignupDto);
+                    await _context.User.InsertOneAsync(userSignupDto);
 
                     // Return a success response
                     return Ok(new { message = "Signup successful" });
@@ -233,19 +233,6 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-            private string HashPassword(string password)
-                {
-                    // Add your password hashing logic here, e.g., using BCrypt or another hashing algorithm.
-                    return password; // Replace this with the actual hashed password.
-                }
-
-            //for OTP login and signup
-            //private static Dictionary<string, (string Otp, DateTime ExpirationTime)> _otpStore = new Dictionary<string, (string, DateTime)>();
-
-            //private void StoreOtp(string phoneNumber, string otp)
-            //{
-            //    _otpStore[phoneNumber] = (otp, DateTime.UtcNow.AddMinutes(5));
-            //}
 
             [HttpPost("sms-otp")]
             public async Task<IActionResult> SendSMSOTP(string phoneNumber)
@@ -357,33 +344,12 @@ namespace BrodClientAPI.Controller
             }
 
             [HttpPost("sms-email-otp")]
-            public IActionResult VerifyEmailOtp(string email, string userEnteredOtp)
+            public async Task<IActionResult> VerifyEmailOtp(string email, string userEnteredOtp)
             {
-            // Check if OTP exists for this phone number
-
                 try
                 {
-                    var otpSms = _context.OtpEmail.Find(x => x.email == email && x.OTP == userEnteredOtp).FirstOrDefaultAsync();
-                    if (DateTime.UtcNow > otpSms.Result.expirationMin)
-                    {
-                        return BadRequest("OTP has expired.");
-                    }
-                    return Ok("OTP verified successfully.");
-                } catch (Exception ex)
-                {
-                    return BadRequest("Error: "+ex.Message);
-                }
-            }
-
-            [HttpPost("sms-verify-otp")]
-            public IActionResult VerifySMSOtp(string phoneNumber, string userEnteredOtp)
-            {
-                // Check if OTP exists for this phone number
-
-                try
-                {
-                    var otpSms = _context.OtpSMS.Find(x => x.phoneNumber == phoneNumber && x.OTP == userEnteredOtp).FirstOrDefaultAsync();
-                    if (DateTime.UtcNow > otpSms.Result.expirationMin)
+                    var otpSms = await _context.OtpEmail.Find(x => x.email == email && x.OTP == userEnteredOtp).FirstOrDefaultAsync();
+                    if (otpSms == null || DateTime.UtcNow > otpSms.expirationMin)
                     {
                         return BadRequest("OTP has expired.");
                     }
@@ -395,88 +361,37 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-        //public IActionResult SendSMSOTP(string phoneNumber)
-        //{
-        //    try
-        //    {
-        //        var otp = new Random().Next(100000, 999999).ToString();
-        //        var acctsid = _configuration["Twilio:ACCOUNT_SID"];
-        //        var token = _configuration["Twilio:AUTH_TOKEN"];
-        //        StoreOtp(phoneNumber, otp);
 
-
-        //        TwilioClient.Init(acctsid, token);
-
-        //        var messageOptions = new CreateMessageOptions(
-        //        new PhoneNumber("+18777804236"));
-        //        messageOptions.From = new PhoneNumber("+61256042821");
-        //        messageOptions.Body = "112233";
-        //        var message = MessageResource.Create(messageOptions);
-
-
-        //    return Ok("OTP verified successfully.");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest("No OTP found for this phone number.");
-        //    }
-        //}
-
-        //[HttpPost("sms-verify-otp")]
-        //    public IActionResult VerifyOtp(string phoneNumber, string userEnteredOtp)
-        //    {
-        //        // Check if OTP exists for this phone number
-        //        if (_otpStore.TryGetValue(phoneNumber, out var otpData))
-        //        {
-        //            // Check if the OTP has expired
-        //            if (DateTime.UtcNow > otpData.ExpirationTime)
-        //            {
-        //                return BadRequest("OTP has expired.");
-        //            }
-
-        //            // Compare the stored OTP with the user-entered OTP
-        //            if (otpData.Otp == userEnteredOtp)
-        //            {
-        //                return Ok("OTP verified successfully.");
-        //            }
-        //            else
-        //            {
-        //                return BadRequest("Invalid OTP.");
-        //            }
-        //        }
-        //        else
-        //        {
-        //            return BadRequest("No OTP found for this phone number.");
-        //        }
-        //    }
-
-        //    private async Task SendEmailOtp(string emailAddress, string otp)
-        //    {
-        //        var apikey = _configuration["SendGrid:API_KEY"];
-        //        var email = _configuration["SendGrid:Email"];
-        //        var appName = _configuration["SendGrid:AppName"];
-
-        //        var client = new SendGridClient(apikey);
-        //        var from = new EmailAddress(email, appName);
-        //        var subject = "Your OTP Code";
-        //        var to = new EmailAddress(emailAddress);
-        //        var plainTextContent = $"Your OTP code is {otp}";
-        //        var htmlContent = $"<strong>Your OTP code is {otp}</strong>";
-        //        var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
-        //        var response = await client.SendEmailAsync(msg);
-        //    }
-
-            [HttpGet("userDetails")]
-            public IActionResult GetProfileById(string id)
+            [HttpPost("sms-verify-otp")]
+            public async Task<IActionResult> VerifySMSOtp(string phoneNumber, string userEnteredOtp)
             {
                 try
                 {
-                    var tradie = _context.User.Find(user => user._id == id).FirstOrDefault();
-                    if (tradie == null)
+                    var otpSms = await _context.OtpSMS.Find(x => x.phoneNumber == phoneNumber && x.OTP == userEnteredOtp).FirstOrDefaultAsync();
+                    if (otpSms == null || DateTime.UtcNow > otpSms.expirationMin)
+                    {
+                        return BadRequest("OTP has expired.");
+                    }
+                    return Ok("OTP verified successfully.");
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest("Error: " + ex.Message);
+                }
+            }
+
+
+            [HttpGet("userDetails")]
+            public async Task<IActionResult> GetProfileById(string id)
+            {
+                try
+                {
+                    var user = await _context.User.Find(user => user._id == id).FirstOrDefaultAsync();
+                    if (user == null)
                     {
                         return NotFound();
                     }
-                    return Ok(tradie);
+                    return Ok(user);
                 }
                 catch (Exception ex)
                 {
@@ -484,12 +399,48 @@ namespace BrodClientAPI.Controller
                 }
             }
 
+
+            // Fetch tradie details by ID
+            [HttpPost("tradieProfileByID")]
+            public async Task<IActionResult> GetTradieById([FromBody] OwnProfile getTradieProfile)
+            {
+                var tradie = await _context.User.Find(user => user._id == getTradieProfile.ID && user.Role == "Tradie").FirstOrDefaultAsync();
+                if (tradie == null)
+                {
+                    return NotFound();
+                }
+
+                var rating = await _context.Rating.Find(rating => rating.tradieId == getTradieProfile.ID).ToListAsync();
+                if (rating == null)
+                {
+                    return NotFound();
+                }
+
+                var ratingVal = 0;
+                var count = 0;
+                foreach (var ratingItem in rating)
+                {
+                    ratingVal += ratingItem.rating;
+                    count++;
+                }
+                var totalRate = count > 0 ? ratingVal / count : 0;
+
+                var model = new TradieProfile
+                {
+                    user = tradie,
+                    ratings = rating,
+                    TotalRating = totalRate
+                };
+                return Ok(model);
+            }
+
+
             [HttpGet("allServices")]
-            public IActionResult GetAllServices()
+            public async Task<IActionResult> GetAllServices()
             {
                 try
                 {
-                    var services = _context.Services.Find(service => service.IsActive == true).ToList();
+                    var services = await _context.Services.Find(service => service.IsActive == true).ToListAsync();
                     return Ok(services);
                 }
                 catch (Exception ex)
@@ -498,12 +449,13 @@ namespace BrodClientAPI.Controller
                 }
             }
 
+
             [HttpPost("JobPostDetails")]
-            public IActionResult GetJobPostDetails([FromBody] OwnProfile serviceProfile)
+            public async Task<IActionResult> GetJobPostDetails([FromBody] OwnProfile serviceProfile)
             {
                 try
                 {
-                    var service = _context.Services.Find(service => service._id == serviceProfile.ID).FirstOrDefault();
+                    var service = await _context.Services.Find(service => service._id == serviceProfile.ID).FirstOrDefaultAsync();
                     if (service == null)
                     {
                         return NotFound();
@@ -516,8 +468,9 @@ namespace BrodClientAPI.Controller
                 }
             }
 
+
             [HttpPost("FilteredServices")]
-            public IActionResult GetFilteredServices([FromBody] JobAdPostFilter filterInput)
+            public async Task<IActionResult> GetFilteredServices([FromBody] JobAdPostFilter filterInput)
             {
                 try
                 {
@@ -543,7 +496,6 @@ namespace BrodClientAPI.Controller
                         filter &= filterBuilder.Regex(s => s.JobAdTitle, regexFilter);
                     }
 
-
                     // Filter by PricingStartsAt (range between min and max)
                     if (filterInput.PricingStartsMax > filterInput.PricingStartsMin)
                     {
@@ -552,10 +504,9 @@ namespace BrodClientAPI.Controller
                                   filterBuilder.Lte(s => s.PricingStartsAt, filterInput.PricingStartsMax.ToString());
                     }
 
-                    var filteredServices = _context.Services.Find(filter).ToList();
+                    var filteredServices = await _context.Services.Find(filter).ToListAsync();
 
                     var userIds = filteredServices.Select(s => s.UserID).Distinct().ToList();
-
 
                     var userFilterBuilder = Builders<User>.Filter;
                     var userFilter = userFilterBuilder.In(u => u._id, userIds);
@@ -580,13 +531,13 @@ namespace BrodClientAPI.Controller
                     }
 
                     // Fetch the filtered users that match the user filters
-                    var filteredUsers = _context.User.Find(userFilter).ToList();
+                    var filteredUsers = await _context.User.Find(userFilter).ToListAsync();
                     var finalUserIds = filteredUsers.Select(u => u._id).ToList();
 
                     // Step 4: Filter the services again based on the final list of UserIDs from the User filter
                     var finalServices = filteredServices.Where(s => finalUserIds.Contains(s.UserID)).ToList();
 
-                    return Ok(filteredServices);
+                    return Ok(finalServices);
                 }
                 catch (Exception ex)
                 {
@@ -594,6 +545,52 @@ namespace BrodClientAPI.Controller
                 }
             }
 
+
+            [HttpPost("AddNotification")]
+            public async Task<IActionResult> AddNotification([FromBody] Notification notification)
+            {
+                try
+                {
+                    var user = await _context.User.Find(user => user._id == notification.userID).FirstOrDefaultAsync();
+                    if (user == null)
+                    {
+                        return NotFound();
+                    }
+
+                    await _context.Notification.InsertOneAsync(notification);
+
+                    return Ok(notification);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while adding notification", error = ex.Message });
+                }
+            }
+
+
+            [HttpPut("ReadNotification")]
+            public async Task<IActionResult> ReadNotification([FromBody] ReadNotif readNotif)
+                {
+                    try
+                    {
+                        var notifVal = await _context.Notification.Find(notif => notif._id == readNotif.NotificationId).FirstOrDefaultAsync();
+                        if (notifVal == null)
+                        {
+                            return NotFound();
+                        }
+                        notifVal.isRead = true;
+
+                        await _context.Notification.ReplaceOneAsync(notif => notif._id == readNotif.NotificationId, notifVal);
+
+                        return Ok(notifVal);
+                    }
+                    catch (Exception ex)
+                    {
+                        return StatusCode(500, new { message = "An error occurred while updating the notification", error = ex.Message });
+                    }
+                }
+
+
     }
-    
+
 }

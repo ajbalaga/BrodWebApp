@@ -40,6 +40,8 @@ namespace BrodClientAPI.Models
         public decimal EstimatedEarnings { get; set; }= 0;
         public string CallOutRate { get; set; }
         public int PublishedAds { get; set; } = 0;
+        public bool isSuspended { get; set; } = false;
+        public int weeksSuspended { get; set; } = 0;
 
     }
 
