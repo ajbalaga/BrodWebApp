@@ -498,68 +498,65 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                    var filterBuilder = Builders<Services>.Filter;
-                    var filter = filterBuilder.Empty; // Start with an empty filter
+                    // Fetch active services
+                    var services = await _context.Services.Find(service => service.IsActive == true).ToListAsync();
 
-                    // Filter by Postcode
+                    // Apply additional filters
                     if (!string.IsNullOrEmpty(filterInput.Postcode))
                     {
-                        filter &= filterBuilder.Eq(s => s.BusinessPostcode, filterInput.Postcode);
+                        services = services.Where(s => s.BusinessPostcode == filterInput.Postcode).ToList();
                     }
 
-                    // Filter by JobCategory (if multiple categories are provided)
-                    if (!(filterInput.JobCategories.Any(category => string.IsNullOrWhiteSpace(category))) && filterInput.JobCategories.Count > 0)
+                    if (filterInput.JobCategories.Any(category => !string.IsNullOrWhiteSpace(category)) && filterInput.JobCategories.Count > 0)
                     {
-                        filter &= filterBuilder.In(s => s.JobCategory, filterInput.JobCategories);
+                        services = services.Where(s => filterInput.JobCategories.Contains(s.JobCategory)).ToList();
                     }
 
-                    // Filter by Keywords (match JobAdTitle using a case-insensitive regex)
                     if (!string.IsNullOrEmpty(filterInput.Keywords))
                     {
-                        var regexFilter = new BsonRegularExpression(filterInput.Keywords, "i"); // Case-insensitive search
-                        filter &= filterBuilder.Regex(s => s.JobAdTitle, regexFilter);
+                        var keyword = filterInput.Keywords.ToLower();
+                        services = services.Where(s =>
+                            s.JobAdTitle.ToLower().Contains(keyword) ||
+                            s.DescriptionOfService.ToLower().Contains(keyword) ||
+                            s.JobCategory.ToLower().Contains(keyword)).ToList();
                     }
 
-                    // Filter by PricingStartsAt (range between min and max)
                     if (filterInput.PricingStartsMax > filterInput.PricingStartsMin)
                     {
-                        filter &= filterBuilder.Eq(s => s.PricingOption, "Hourly");
-                        filter &= filterBuilder.Gte(s => s.PricingStartsAt, filterInput.PricingStartsMin.ToString()) &
-                                  filterBuilder.Lte(s => s.PricingStartsAt, filterInput.PricingStartsMax.ToString());
+                        services = services.Where(s =>
+                            s.PricingOption == "Hourly" &&
+                            decimal.TryParse(s.PricingStartsAt, out var price) &&
+                            price >= filterInput.PricingStartsMin &&
+                            price <= filterInput.PricingStartsMax).ToList();
                     }
 
-                    var filteredServices = await _context.Services.Find(filter).ToListAsync();
+                    var userIds = services.Select(s => s.UserID).Distinct().ToList();
 
-                    var userIds = filteredServices.Select(s => s.UserID).Distinct().ToList();
-
-                    var userFilterBuilder = Builders<User>.Filter;
-                    var userFilter = userFilterBuilder.In(u => u._id, userIds);
+                    var users = await _context.User.Find(u => userIds.Contains(u._id)).ToListAsync();
 
                     if (filterInput.CallOutRateMax > filterInput.CallOutRateMin)
                     {
-                        userFilter &= userFilterBuilder.Gte(u => u.CallOutRate, filterInput.CallOutRateMin.Value.ToString()) &
-                                      userFilterBuilder.Lte(u => u.CallOutRate, filterInput.CallOutRateMin.Value.ToString());
+                        users = users.Where(u =>
+                            decimal.TryParse(u.CallOutRate, out var rate) &&
+                            rate >= filterInput.CallOutRateMin &&
+                            rate <= filterInput.CallOutRateMax).ToList();
                     }
 
-                    // Filter by ProximityToWork (min and max range)
                     if (filterInput.ProximityToWorkMax > filterInput.ProximityToWorkMin)
                     {
-                        userFilter &= userFilterBuilder.Gte(u => u.ProximityToWork, filterInput.ProximityToWorkMin.Value.ToString()) &
-                                      userFilterBuilder.Lte(u => u.ProximityToWork, filterInput.ProximityToWorkMax.Value.ToString());
+                        users = users.Where(u =>
+                            decimal.TryParse(u.ProximityToWork, out var proximity) &&
+                            proximity >= filterInput.ProximityToWorkMin &&
+                            proximity <= filterInput.ProximityToWorkMax).ToList();
                     }
 
-                    // Filter by AvailabilityToWork (multiple answers)
-                    if (!String.IsNullOrEmpty(filterInput.AvailabilityToWork[0]) && filterInput.AvailabilityToWork.Count > 0)
+                    if (!string.IsNullOrEmpty(filterInput.AvailabilityToWork[0]) && filterInput.AvailabilityToWork.Count > 0)
                     {
-                        userFilter &= userFilterBuilder.In(u => u.AvailabilityToWork, filterInput.AvailabilityToWork);
+                        users = users.Where(u => filterInput.AvailabilityToWork.Contains(u.AvailabilityToWork)).ToList();
                     }
 
-                    // Fetch the filtered users that match the user filters
-                    var filteredUsers = await _context.User.Find(userFilter).ToListAsync();
-                    var finalUserIds = filteredUsers.Select(u => u._id).ToList();
-
-                    // Step 4: Filter the services again based on the final list of UserIDs from the User filter
-                    var finalServices = filteredServices.Where(s => finalUserIds.Contains(s.UserID)).ToList();
+                    var finalUserIds = users.Select(u => u._id).ToList();
+                    var finalServices = services.Where(s => finalUserIds.Contains(s.UserID)).ToList();
 
                     return Ok(finalServices);
                 }
