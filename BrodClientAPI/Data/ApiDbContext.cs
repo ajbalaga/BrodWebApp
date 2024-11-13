@@ -24,8 +24,11 @@ namespace BrodClientAPI.Data
 
         public IMongoCollection<User> User => _database.GetCollection<User>("User");
         public IMongoCollection<Services> Services => _database.GetCollection<Services>("Services");
-        public IMongoCollection<Reviews> Reviews => _database.GetCollection<Reviews>("Reviews");
+        //public IMongoCollection<Reviews> Reviews => _database.GetCollection<Reviews>("Reviews");
         public IMongoCollection<Jobs> Jobs => _database.GetCollection<Jobs>("Jobs");
+        public IMongoCollection<Rating> Rating => _database.GetCollection<Rating>("Rating");
+        public IMongoCollection<Notification> Notification => _database.GetCollection<Notification>("Notification");
+        public IMongoCollection<Messages> Messages => _database.GetCollection<Messages>("Messages");
         public IMongoCollection<OTPSMS> OtpSMS => _database.GetCollection<OTPSMS>("OtpSMS");
         public IMongoCollection<OTPEMAIL> OtpEmail => _database.GetCollection<OTPEMAIL>("OtpEmail");
 
@@ -36,8 +39,11 @@ namespace BrodClientAPI.Data
                 // Create an index on the Username field
                 User.Indexes.CreateOne(new CreateIndexModel<User>(Builders<User>.IndexKeys.Ascending(u => u._id)));
                 Services.Indexes.CreateOne(new CreateIndexModel<Services>(Builders<Services>.IndexKeys.Ascending(u => u._id)));
-                Reviews.Indexes.CreateOne(new CreateIndexModel<Reviews>(Builders<Reviews>.IndexKeys.Ascending(u => u._id)));
+                //Reviews.Indexes.CreateOne(new CreateIndexModel<Reviews>(Builders<Reviews>.IndexKeys.Ascending(u => u._id)));
                 Jobs.Indexes.CreateOne(new CreateIndexModel<Jobs>(Builders<Jobs>.IndexKeys.Ascending(u => u._id)));
+                Rating.Indexes.CreateOne(new CreateIndexModel<Rating>(Builders<Rating>.IndexKeys.Ascending(u => u._id)));
+                Notification.Indexes.CreateOne(new CreateIndexModel<Notification>(Builders<Notification>.IndexKeys.Ascending(u => u._id)));
+                Messages.Indexes.CreateOne(new CreateIndexModel<Messages>(Builders<Messages>.IndexKeys.Ascending(u => u._id)));
                 OtpSMS.Indexes.CreateOne(new CreateIndexModel<OTPSMS>(Builders<OTPSMS>.IndexKeys.Ascending(u => u._id)));
                 OtpEmail.Indexes.CreateOne(new CreateIndexModel<OTPEMAIL>(Builders<OTPEMAIL>.IndexKeys.Ascending(u => u._id)));
             }
