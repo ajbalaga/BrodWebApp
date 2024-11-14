@@ -10,6 +10,7 @@ namespace BrodClientAPI.Models
         public string _id { get; set; }
         public string tradieId { get; set; }
         public string clientId { get; set; }
+        public string jobId { get; set; }
         public int rating { get; set; }
         public string clientLocation { get; set; }
         public string ratingDescription { get; set; }

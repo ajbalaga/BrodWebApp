@@ -28,6 +28,8 @@ namespace BrodClientAPI.Models
         public string? TradieLocation { get; set; }
         public string? JobActionDate { get; set; }
         public string? JobAdDescription { get; set; }
+        public int Rating { get; set; } = 0;
+        public string? RatingDesc { get; set; }
 
     }
 }

@@ -260,6 +260,20 @@ namespace BrodClientAPI.Controller
             }
         }
 
+        [HttpPost("delete-tradie-job")]
+        public async Task<IActionResult> DeleteTradieJobAd(string jobId)
+        {
+            try
+            {
+                await _context.Services.DeleteOneAsync(job => job._id == jobId);
+                return Ok(new { message = "Job deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while sending job offer", error = ex.Message });
+            }
+        }
+
         [HttpGet("publishedAds")]
         public async Task<IActionResult> GetPublishedAds([FromQuery] string userId)
         {
