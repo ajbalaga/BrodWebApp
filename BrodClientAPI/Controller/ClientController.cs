@@ -208,6 +208,20 @@ namespace BrodClientAPI.Controller
             }
         }
 
+        [HttpPost("UnBookmarkJob")]
+        public async Task<IActionResult> UnBookmarkJob(string bookmarkedJobId)
+        {
+            try
+            {
+                await _context.Jobs.DeleteOneAsync(job => job._id == bookmarkedJobId);
+                return Ok(new { message = "Job unbookmarked successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while sending job offer", error = ex.Message });
+            }
+        }
+
         [HttpPost("GetJobsByStatus")]
         public async Task<IActionResult> GetFilteredJobs([FromBody] GetJobsByStatus jobsByStatus)
         {
@@ -310,6 +324,12 @@ namespace BrodClientAPI.Controller
                 rating.clientLocation = $"{client.City},{client.State} {client.PostalCode}";
 
                 await _context.Rating.InsertOneAsync(rating);
+
+                await _context.Jobs.UpdateOneAsync(
+                                                    Builders<Jobs>.Filter.Eq(j => j._id, rating.jobId),
+                                                    Builders<Jobs>.Update
+                                                        .Set(j => j.Rating, rating.rating)
+                                                        .Set(j => j.RatingDesc, rating.ratingDescription));
 
                 return Ok(rating);
             }
