@@ -330,6 +330,8 @@ namespace BrodClientAPI.Controller
                                                     Builders<Jobs>.Update
                                                         .Set(j => j.Rating, rating.rating)
                                                         .Set(j => j.RatingDesc, rating.ratingDescription));
+                await _context.Services.UpdateOneAsync(Builders<Services>.Filter.Eq(j => j._id, rating.jobAdId),
+                                                        Builders<Services>.Update.Push(k => k.ClientReviews, rating));
 
                 return Ok(rating);
             }
