@@ -808,7 +808,28 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-        [HttpPost("AddMessage")]
+            [HttpPost("GetNotificationsNoUpdate")]
+            public async Task<IActionResult> GetNotificationsNoUpdate(string userId)
+            {
+                try
+                {
+                    var notifVal = await _context.Notification
+                                                    .Find(notif => notif.userID == userId && notif.isRead == false)
+                                                    .ToListAsync();
+                    if (notifVal == null)
+                    {
+                        return Ok("No new notification!");
+                    }
+
+                    return Ok(notifVal);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while updating the notification", error = ex.Message });
+                }
+            }
+
+            [HttpPost("AddMessage")]
             public async Task<IActionResult> AddMessage([FromBody] Messages message)
             {
                 try
@@ -924,17 +945,29 @@ namespace BrodClientAPI.Controller
                         .SortBy(mess => mess.TimeStamp)
                         .ToListAsync();
 
-                    var combinedMessages = new CombinedMessages();
-                    foreach (var mess in messByClient)
+                    var combinedMessages = new CombinedMessages
                     {
-                        combinedMessages.ClientMessages.Add(mess);
-                    }
-                    foreach (var mess in messByTradie)
-                    {
-                        combinedMessages.TradieMessages.Add(mess);
-                    }
+                        ClientMessages = new List<ClientMessage>(),
+                        TradieMessages = new List<TradieMessage>()
+                    };
 
-                    return Ok(combinedMessages);
+
+                    if (messByClient != null && messByClient.Count > 1)
+                        {
+                            foreach (var mess in messByClient)
+                            {
+                                combinedMessages.ClientMessages.Add(mess);
+                            }
+                        }
+
+                    if (messByTradie != null && messByTradie.Count > 1)
+                    {
+                        foreach (var mess in messByTradie)
+                        {
+                            combinedMessages.TradieMessages.Add(mess);
+                        }
+                    }
+                return Ok(combinedMessages);
                 }
                 catch (Exception ex)
                 {

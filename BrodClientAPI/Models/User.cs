@@ -42,6 +42,7 @@ namespace BrodClientAPI.Models
         public int PublishedAds { get; set; } = 0;
         public bool isSuspended { get; set; } = false;
         public int weeksSuspended { get; set; } = 0;
+        public DateTime? TimeStamp { get; set; }
 
     }
 
