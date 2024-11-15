@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BrodClientAPI.Data;
 using MongoDB.Driver;
+using System.Text.RegularExpressions;
 
 namespace BrodClientAPI.Controller
 {
@@ -38,6 +39,89 @@ namespace BrodClientAPI.Controller
         {
             var tradies = await _context.User.Find(user => user.Role == "Tradie").ToListAsync(); // Fetch all tradies from MongoDB
             return Ok(tradies);
+        }
+        [HttpPost("FilteredServices")]
+        public async Task<IActionResult> GetFilteredTradies([FromBody] UserFilter filterInput)
+        {
+            try
+            {
+                // Fetch active services
+                var tradies = await _context.User.Find(user => user.Role == "Tradie").ToListAsync();
+
+                // Apply additional filters
+                if (!string.IsNullOrEmpty(filterInput.TypeOfWork))
+                {
+                    tradies = tradies.Where(s => s.TypeofWork == filterInput.TypeOfWork).ToList();
+                }
+                if (!string.IsNullOrEmpty(filterInput.Status))
+                {
+                    tradies = tradies.Where(s => s.Status == filterInput.Status).ToList();
+                }
+                if (filterInput.SubmissionDateFrom != null && filterInput.SubmissionDateTo != null)
+                {
+                    tradies = tradies.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom && s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                }
+                else
+                {
+                    if (filterInput.SubmissionDateFrom != null)
+                    {
+                        tradies = tradies.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom).ToList();
+                    }
+
+                    if (filterInput.SubmissionDateTo != null)
+                    {
+                        tradies = tradies.Where(s => s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                    }
+                }
+
+                return Ok(tradies);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving tradies", error = ex.Message });
+            }
+        }
+
+        [HttpPost("FilteredUsers")]
+        public async Task<IActionResult> GetFilteredUsers([FromBody] UserFilter filterInput)
+        {
+            try
+            {
+                // Fetch active services
+                var users = await _context.User.Find(user => true).ToListAsync();
+
+                // Apply additional filters
+                if (!string.IsNullOrEmpty(filterInput.TypeOfWork))
+                {
+                    users = users.Where(s => s.TypeofWork == filterInput.TypeOfWork).ToList();
+                }
+                if (!string.IsNullOrEmpty(filterInput.Status))
+                {
+                    users = users.Where(s => s.Status == filterInput.Status).ToList();
+                }
+                if (filterInput.SubmissionDateFrom != null && filterInput.SubmissionDateTo != null)
+                {
+                    users = users.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom && s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                }
+                else
+                {
+                    if (filterInput.SubmissionDateFrom != null)
+                    {
+                        users = users.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom).ToList();
+                    }
+
+                    if (filterInput.SubmissionDateTo != null)
+                    {
+                        users = users.Where(s => s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                    }
+                }
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred while retrieving users", error = ex.Message });
+            }
         }
 
         // Fetch tradie details by ID
