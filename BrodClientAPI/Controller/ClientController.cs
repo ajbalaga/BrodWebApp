@@ -200,7 +200,7 @@ namespace BrodClientAPI.Controller
                 var addCountJobOffer = new UpdateCount { TradieID = existingService.UserID, Count = tradie.PendingOffers + 1 };
                 await UpdateJobOfferCount(addCountJobOffer);
 
-                return Ok(new { message = "Job offer submitted successfully" });
+                return Ok(new { message = "Bookmarked job successfully" });
             }
             catch (Exception ex)
             {
@@ -330,6 +330,15 @@ namespace BrodClientAPI.Controller
                                                     Builders<Jobs>.Update
                                                         .Set(j => j.Rating, rating.rating)
                                                         .Set(j => j.RatingDesc, rating.ratingDescription));
+
+                var clientReview = new AddReviewToJobPostAd { 
+                                                        clientName = $"{client.FirstName} {client.LastName}",
+                                                        clientLocation = rating.clientLocation,
+                                                        ratingDescription = rating.ratingDescription,
+                                                        rating = rating.rating
+                                                        };
+                await _context.Services.UpdateOneAsync(Builders<Services>.Filter.Eq(j => j._id, rating.jobAdId),
+                                                        Builders<Services>.Update.Push(k => k.ClientReviews, clientReview));
 
                 return Ok(rating);
             }
