@@ -19,6 +19,6 @@ namespace BrodClientAPI.Models
         public string ThumbnailImage { get; set; }
         public List<string> ProjectGallery { get; set; }
         public bool IsActive { get; set; }
-        public List<Rating> ClientReviews { get; set; } = new List<Rating>();
+        public List<AddReviewToJobPostAd>? ClientReviews { get; set; } = new List<AddReviewToJobPostAd> {null};
     }
 }

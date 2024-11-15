@@ -31,6 +31,8 @@ namespace BrodClientAPI.Data
         public IMongoCollection<Messages> Messages => _database.GetCollection<Messages>("Messages");
         public IMongoCollection<OTPSMS> OtpSMS => _database.GetCollection<OTPSMS>("OtpSMS");
         public IMongoCollection<OTPEMAIL> OtpEmail => _database.GetCollection<OTPEMAIL>("OtpEmail");
+        public IMongoCollection<ClientMessage> ClientMessage => _database.GetCollection<ClientMessage>("ClientMessage");
+        public IMongoCollection<TradieMessage> TradieMessage => _database.GetCollection<TradieMessage>("TradieMessage");
 
         public void Initialize()
         {
@@ -46,6 +48,8 @@ namespace BrodClientAPI.Data
                 Messages.Indexes.CreateOne(new CreateIndexModel<Messages>(Builders<Messages>.IndexKeys.Ascending(u => u._id)));
                 OtpSMS.Indexes.CreateOne(new CreateIndexModel<OTPSMS>(Builders<OTPSMS>.IndexKeys.Ascending(u => u._id)));
                 OtpEmail.Indexes.CreateOne(new CreateIndexModel<OTPEMAIL>(Builders<OTPEMAIL>.IndexKeys.Ascending(u => u._id)));
+                ClientMessage.Indexes.CreateOne(new CreateIndexModel<ClientMessage>(Builders<ClientMessage>.IndexKeys.Ascending(u => u._id)));
+                TradieMessage.Indexes.CreateOne(new CreateIndexModel<TradieMessage>(Builders<TradieMessage>.IndexKeys.Ascending(u => u._id)));
             }
             catch (Exception ex)
             {

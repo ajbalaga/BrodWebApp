@@ -18,6 +18,8 @@ using Amazon.Pinpoint.Model;
 using Amazon.Runtime;
 using Microsoft.VisualBasic;
 using System.Diagnostics;
+using static System.Net.WebRequestMethods;
+using Google.Apis.Auth;
 
 namespace BrodClientAPI.Controller
 {
@@ -38,6 +40,20 @@ namespace BrodClientAPI.Controller
                 var credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
                 _pinpointClient = new AmazonPinpointClient(credentials, RegionEndpoint.APSoutheast1);
         }
+
+            [HttpGet("allUsers")]
+            public async Task<IActionResult> GetAllUsers()
+            {
+                try
+                {
+                    var users = await _context.User.Find(_ => true).ToListAsync();
+                    return Ok(users);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while retrieving services", error = ex.Message });
+                }
+            }
 
             [HttpPost("login")]
             public async Task<IActionResult> Login([FromBody] LoginInput login)
@@ -64,9 +80,11 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                    // Check if the user already exists in the database asynchronously
-                    var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+                var password = PasswordGenerator.GeneratePassword();
 
+                // Check if the user already exists in the database asynchronously
+                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+                    
                     if (existingUser == null)
                     {
                         // If the user does not exist, create a new user
@@ -75,6 +93,7 @@ namespace BrodClientAPI.Controller
                             _id = "",
                             Email = input.email,
                             Username = input.given_name,
+                            Password= password,
                             Role = "Client",
                             FirstName = input.given_name,
                             LastName = input.family_name,
@@ -105,9 +124,69 @@ namespace BrodClientAPI.Controller
                             PublishedAds = 0
                         };
 
-                        // Insert the new user asynchronously
-                        await _context.User.InsertOneAsync(newUser);
-                        existingUser = newUser;
+                    
+                    // Create the request to send the email message
+                    var request = new SendMessagesRequest
+                    {
+                        ApplicationId = _configuration["AWS:PinpointAppId"],
+                        MessageRequest = new MessageRequest
+                        {
+                            Addresses = new Dictionary<string, AddressConfiguration>
+                    {
+                        { input.email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
+                    },
+                            MessageConfiguration = new DirectMessageConfiguration
+                            {
+                                EmailMessage = new EmailMessage
+                                {
+                                    FromAddress = _configuration["AWS:FromEmailAddress"],
+                                    SimpleEmail = new SimpleEmail
+                                    {
+                                        Subject = new SimpleEmailPart { Data = "Important: Your Temporary Password for Brod Client" },
+                                        HtmlPart = new SimpleEmailPart
+                                        {
+                                            Data = $@"
+                                                    <html>
+                                                        <body style='font-family: Arial, sans-serif;'>
+                                                            <h2 style='color: #2E86C1;'>Official Notification</h2>
+                                                            <p>Dear User,</p>
+                                                            <p>Your temporary password for Brod Client is: <strong>{password}</strong></p>
+                                                            <p>Please use this password to log in and change it to a new one as soon as possible.</p>
+                                                            <p>If you did not request this password, please contact our support team immediately.</p>
+                                                            <p>Thank you,</p>
+                                                            <p><em>Brod Client Support Team</em></p>
+                                                        </body>
+                                                    </html>"
+                                        },
+                                        TextPart = new SimpleEmailPart
+                                        {
+                                            Data = $@"
+                                                    Official Notification
+
+                                                    Dear User,
+
+                                                    Your temporary password for Brod Client is: {password}
+
+                                                    Please use this password to log in and change it to a new one as soon as possible.
+
+                                                    If you did not request this password, please contact our support team immediately.
+
+                                                    Thank you,
+
+                                                    Brod Client Support Team"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    // Send the email through Pinpoint
+                    var response = await _pinpointClient.SendMessagesAsync(request);
+
+                    // Insert the new user asynchronously
+                    await _context.User.InsertOneAsync(newUser);
+                    existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync(); ;
                     }
 
                     // Generate a JWT token for the user (assuming it's a synchronous method)
@@ -128,8 +207,10 @@ namespace BrodClientAPI.Controller
             {
             try
             {
+                var password = PasswordGenerator.GeneratePassword();
+
                 // Check if the user already exists in the database asynchronously
-                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();                
 
                 if (existingUser == null)
                 {
@@ -139,6 +220,7 @@ namespace BrodClientAPI.Controller
                         _id = "",
                         Email = input.email,
                         Username = input.given_name,
+                        Password = password,
                         Role = "Tradie",
                         FirstName = input.given_name,
                         LastName = input.family_name,
@@ -151,7 +233,7 @@ namespace BrodClientAPI.Controller
                         RegisteredBusinessName = "",
                         AustralianBusinessNumber = "",
                         TypeofWork = "",
-                        Status = "",
+                        Status = "New",
                         ReasonforDeclinedApplication = "",
                         AboutMeDescription = "",
                         Website = "",
@@ -169,9 +251,70 @@ namespace BrodClientAPI.Controller
                         PublishedAds = 0
                     };
 
+
+                    // Create the request to send the email message
+                    var request = new SendMessagesRequest
+                    {
+                        ApplicationId = _configuration["AWS:PinpointAppId"],
+                        MessageRequest = new MessageRequest
+                        {
+                            Addresses = new Dictionary<string, AddressConfiguration>
+                    {
+                        { input.email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
+                    },
+                            MessageConfiguration = new DirectMessageConfiguration
+                            {
+                                EmailMessage = new EmailMessage
+                                {
+                                    FromAddress = _configuration["AWS:FromEmailAddress"],
+                                    SimpleEmail = new SimpleEmail
+                                    {
+                                        Subject = new SimpleEmailPart { Data = "Important: Your Temporary Password for Brod Client" },
+                                        HtmlPart = new SimpleEmailPart
+                                        {
+                                            Data = $@"
+                                                    <html>
+                                                        <body style='font-family: Arial, sans-serif;'>
+                                                            <h2 style='color: #2E86C1;'>Official Notification</h2>
+                                                            <p>Dear User,</p>
+                                                            <p>Your temporary password for Brod Client is: <strong>{password}</strong></p>
+                                                            <p>You can login using email and password or still your google login.</p>
+                                                            <p>If you did not request this password, please contact our support team immediately.</p>
+                                                            <p>Thank you,</p>
+                                                            <p><em>Brod Client Support Team</em></p>
+                                                        </body>
+                                                    </html>"
+                                        },
+                                        TextPart = new SimpleEmailPart
+                                        {
+                                            Data = $@"
+                                                    Official Notification
+
+                                                    Dear User,
+
+                                                    Your temporary password for Brod Client is: {password}
+
+                                                    You can login using email and password or still your google login.
+
+                                                    If you did not request this password, please contact our support team immediately.
+
+                                                    Thank you,
+
+                                                    Brod Client Support Team"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    // Send the email through Pinpoint
+                    var response = await _pinpointClient.SendMessagesAsync(request);
+
                     // Insert the new user asynchronously
                     await _context.User.InsertOneAsync(newUser);
-                    existingUser = newUser;
+
+                    existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
                 }
 
                 // Generate a JWT token for the user (assuming it's a synchronous method)
@@ -185,6 +328,7 @@ namespace BrodClientAPI.Controller
                 return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
             }
         }
+
 
             private string GenerateJwtToken(User user)
         {
@@ -316,9 +460,36 @@ namespace BrodClientAPI.Controller
                                     FromAddress = _configuration["AWS:FromEmailAddress"],
                                     SimpleEmail = new SimpleEmail
                                     {
-                                        Subject = new SimpleEmailPart { Data = "Your OTP Code" },
-                                        HtmlPart = new SimpleEmailPart { Data = $"<h1>Your OTP code is {otp}</h1>" },
-                                        TextPart = new SimpleEmailPart { Data = $"Your OTP code is {otp}" }
+                                        Subject = new SimpleEmailPart { Data = "Important: Your OTP Code" },
+                                        HtmlPart = new SimpleEmailPart
+                                        {
+                                            Data = $@"
+                                                    <html>
+                                                        <body>
+                                                            <h2 style='color: #2E86C1;'>Official Notification</h2>
+                                                            <p>Dear User,</p>
+                                                            <p>Your One-Time Password (OTP) code is: <strong>{otp}</strong></p>
+                                                            <p>Please use this code to complete your verification process. If you did not request this code, please contact our support team immediately.</p>
+                                                            <p>Thank you,</p>
+                                                            <p><em>Brod Client</em></p>
+                                                        </body>
+                                                    </html>"
+                                                                                },
+                                        TextPart = new SimpleEmailPart
+                                                                                {
+                                                                                    Data = $@"
+                                                                                            Official Notification
+
+                                                                                            Dear User,
+
+                                                                                            Your One-Time Password (OTP) code is: {otp}
+
+                                                                                            Please use this code to complete your verification process. If you did not request this code, please contact our support team immediately.
+
+                                                                                            Thank you,
+
+                                                                                            Stefan"
+                                                                                }
                                     }
                                 }
                             }
@@ -344,7 +515,7 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-            [HttpPost("sms-email-otp")]
+            [HttpPost("email-verify-otp")]
             public async Task<IActionResult> VerifyEmailOtp(string email, string userEnteredOtp)
             {
                 try
@@ -588,7 +759,6 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-
             [HttpPut("ReadNotification")]
             public async Task<IActionResult> ReadNotification([FromBody] ReadNotif readNotif)
                 {
@@ -611,12 +781,38 @@ namespace BrodClientAPI.Controller
                     }
                 }
 
-            [HttpPost("AddMessage")]
+            [HttpPost("GetNotifications")]
+            public async Task<IActionResult> GetNotifications(string userId)
+            {
+                try
+                {
+                    var notifVal = await _context.Notification
+                                                    .Find(notif => notif.userID == userId && notif.isRead == false)
+                                                    .ToListAsync();
+                    if (notifVal == null)
+                        {
+                            return Ok("No new notification!");
+                        }
+
+                    foreach (var notif in notifVal) {
+                        var filter = Builders<Notification>.Filter.Eq(n => n._id, notif._id);
+                        var update = Builders<Notification>.Update.Set(n => n.isRead, true);
+                        await _context.Notification.UpdateOneAsync(filter, update);
+                    }
+
+                    return Ok(notifVal);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while updating the notification", error = ex.Message });
+                }
+            }
+
+        [HttpPost("AddMessage")]
             public async Task<IActionResult> AddMessage([FromBody] Messages message)
             {
                 try
                 {
-
                     await _context.Messages.InsertOneAsync(message);
 
                     return Ok(message);
@@ -627,21 +823,73 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-
-            [HttpPost("GetMessages")]
-            public async Task<IActionResult> GetMessage([FromBody] GetMessage getMessage)
+            [HttpPost("Client-AddMessage")]
+            public async Task<IActionResult> ClientAddMessage([FromBody] ClientMessage message)
             {
                 try
                 {
-                var filter =    Builders<Messages>.Filter.And(
-                                Builders<Messages>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
-                                Builders<Messages>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
-                            );
+                    
 
-                var messages = await _context.Messages
-                    .Find(filter)
-                    .SortBy(mess => mess.TimeStamp)
-                    .ToListAsync();
+                    var tradie = await _context.User.Find(user => user._id == message.TradieId).FirstOrDefaultAsync();
+                    if (tradie == null)
+                    {
+                        return NotFound();
+                    }
+                    message.Picture = tradie.ProfilePicture;
+                    message.Tradielocation = $"{tradie.City},{tradie.State} {tradie.PostalCode}";
+                    message.TradieName = $"{tradie.FirstName} {tradie.LastName}";
+
+                    await _context.ClientMessage.InsertOneAsync(message);
+
+                return Ok(message); 
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while adding message", error = ex.Message });
+                }
+            }
+
+            [HttpPost("Tradie-AddMessage")]
+            public async Task<IActionResult> TradieAddMessage([FromBody] TradieMessage message)
+            {
+                try
+                {
+
+
+                    var client = await _context.User.Find(user => user._id == message.ClientId).FirstOrDefaultAsync();
+                    if (client == null)
+                    {
+                        return NotFound();
+                    }
+                    message.Picture = client.ProfilePicture;
+                    message.Clientlocation = $"{client.City},{client.State} {client.PostalCode}";
+                    message.ClientName = $"{client.FirstName} {client.LastName}";
+
+                    await _context.TradieMessage.InsertOneAsync(message);
+
+                    return Ok(message);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while adding message", error = ex.Message });
+                }
+            }
+
+            [HttpPost("Client-GetAll-Messages")]
+            public async Task<IActionResult> ClientGetAllMessages([FromBody] GetMessage getMessage)
+            {
+                try
+                {
+                var filter = Builders<ClientMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId);
+
+                var messages = await _context.ClientMessage
+                                .Find(filter)
+                                .SortBy(mess => mess.TimeStamp)
+                                .ToListAsync()
+                                .ContinueWith(task => task.Result
+                                    .GroupBy(mess => mess.TradieId)
+                                    .Select(group => group.First())
+                                    .ToList());
 
                 return Ok(messages);
             }
@@ -651,7 +899,72 @@ namespace BrodClientAPI.Controller
                 }
             }
 
+            [HttpPost("GetMessages-ByID")]
+            public async Task<IActionResult> GetMessagesById([FromBody] GetMessage getMessage)
+            {
+                try
+                {
+                    var filter = Builders<ClientMessage>.Filter.And(
+                                    Builders<ClientMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
+                                    Builders<ClientMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
+                                );
 
+                    var messByClient = await _context.ClientMessage
+                        .Find(filter)
+                        .SortBy(mess => mess.TimeStamp)
+                        .ToListAsync();
+
+                    var filter2 = Builders<TradieMessage>.Filter.And(
+                                        Builders<TradieMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
+                                        Builders<TradieMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
+                                    );
+
+                    var messByTradie = await _context.TradieMessage
+                        .Find(filter2)
+                        .SortBy(mess => mess.TimeStamp)
+                        .ToListAsync();
+
+                    var combinedMessages = new CombinedMessages();
+                    foreach (var mess in messByClient)
+                    {
+                        combinedMessages.ClientMessages.Add(mess);
+                    }
+                    foreach (var mess in messByTradie)
+                    {
+                        combinedMessages.TradieMessages.Add(mess);
+                    }
+
+                    return Ok(combinedMessages);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while gettting messages", error = ex.Message });
+                }
+            }
+
+            [HttpPost("Tradie-GetAll-Messages")]
+            public async Task<IActionResult> TradieGetAllMessages([FromBody] GetMessage getMessage)
+            {
+                try
+                {
+                    var filter = Builders<TradieMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId);
+
+                var messages = await _context.TradieMessage
+                                .Find(filter)
+                                .SortBy(mess => mess.TimeStamp)
+                                .ToListAsync()
+                                .ContinueWith(task => task.Result
+                                    .GroupBy(mess => mess.ClientId)
+                                    .Select(group => group.First())
+                                    .ToList());
+
+                return Ok(messages);
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred while gettting messages", error = ex.Message });
+                }
+            }
     }
 
 }
