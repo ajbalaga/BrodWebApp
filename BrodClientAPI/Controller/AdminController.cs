@@ -40,7 +40,7 @@ namespace BrodClientAPI.Controller
             var tradies = await _context.User.Find(user => user.Role == "Tradie").ToListAsync(); // Fetch all tradies from MongoDB
             return Ok(tradies);
         }
-        [HttpPost("FilteredServices")]
+        [HttpPost("GetFilteredTradies")]
         public async Task<IActionResult> GetFilteredTradies([FromBody] UserFilter filterInput)
         {
             try
@@ -57,21 +57,21 @@ namespace BrodClientAPI.Controller
                 {
                     tradies = tradies.Where(s => s.Status == filterInput.Status).ToList();
                 }
-                if (filterInput.SubmissionDateFrom != null && filterInput.SubmissionDateTo != null)
+                if (filterInput.SubmissionDateFrom != null )
                 {
-                    tradies = tradies.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom && s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                    tradies = tradies.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom ).ToList();
                 }
-                else
+                if (filterInput.SubmissionDateTo != null)
                 {
-                    if (filterInput.SubmissionDateFrom != null)
-                    {
-                        tradies = tradies.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom).ToList();
-                    }
-
-                    if (filterInput.SubmissionDateTo != null)
-                    {
-                        tradies = tradies.Where(s => s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
-                    }
+                    tradies = tradies.Where(s => s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                }
+                if (!string.IsNullOrEmpty(filterInput.Keyword))
+                {
+                    var keyword = filterInput.Keyword.ToLower();
+                    tradies = tradies.Where(s =>
+                        s.FirstName.ToLower().Contains(keyword) ||
+                        s.LastName.ToLower().Contains(keyword)
+                        ).ToList();
                 }
 
                 return Ok(tradies);
@@ -82,7 +82,7 @@ namespace BrodClientAPI.Controller
             }
         }
 
-        [HttpPost("FilteredUsers")]
+        [HttpPost("GetFilteredUsers")]
         public async Task<IActionResult> GetFilteredUsers([FromBody] UserFilter filterInput)
         {
             try
@@ -99,21 +99,20 @@ namespace BrodClientAPI.Controller
                 {
                     users = users.Where(s => s.Status == filterInput.Status).ToList();
                 }
-                if (filterInput.SubmissionDateFrom != null && filterInput.SubmissionDateTo != null)
+                if (filterInput.SubmissionDateFrom != null)
                 {
-                    users = users.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom && s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                    users = users.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom).ToList();
                 }
-                else
+                if (filterInput.SubmissionDateTo != null)
                 {
-                    if (filterInput.SubmissionDateFrom != null)
-                    {
-                        users = users.Where(s => s.TimeStamp >= filterInput.SubmissionDateFrom).ToList();
-                    }
-
-                    if (filterInput.SubmissionDateTo != null)
-                    {
-                        users = users.Where(s => s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
-                    }
+                    users = users.Where(s => s.TimeStamp <= filterInput.SubmissionDateTo).ToList();
+                }
+                if (!string.IsNullOrEmpty(filterInput.Keyword))
+                {
+                    var keyword = filterInput.Keyword.ToLower();
+                    users = users.Where(s =>
+                        s.FirstName.ToLower().Contains(keyword) ||
+                        s.LastName.ToLower().Contains(keyword)).ToList();
                 }
 
                 return Ok(users);
