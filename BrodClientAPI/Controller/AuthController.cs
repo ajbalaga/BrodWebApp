@@ -75,7 +75,32 @@ namespace BrodClientAPI.Controller
             }
 
 
-            [HttpPost("google-login-client")]
+        [HttpPost("google-login-common")]
+        public async Task<IActionResult> GoogleLoginCommon([FromBody] GoogleLogin input)
+        {
+            try
+            {
+                // Check if the user already exists in the database asynchronously
+                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+
+                if (existingUser == null)
+                {
+                    return Ok("Please sign up as a new user");
+                }
+
+                // Generate a JWT token for the user (assuming it's a synchronous method)
+                var token = GenerateJwtToken(existingUser);
+
+                // Return the token and user information
+                return Ok(new { token, userId = existingUser._id });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
+            }
+        }
+
+        [HttpPost("google-login-client")]
             public async Task<IActionResult> GoogleLoginClient([FromBody] GoogleLogin input)
             {
                 try
@@ -952,7 +977,7 @@ namespace BrodClientAPI.Controller
                     };
 
 
-                    if (messByClient != null && messByClient.Count > 1)
+                    if (messByClient != null && messByClient.Count > 0)
                         {
                             foreach (var mess in messByClient)
                             {
@@ -960,7 +985,7 @@ namespace BrodClientAPI.Controller
                             }
                         }
 
-                    if (messByTradie != null && messByTradie.Count > 1)
+                    if (messByTradie != null && messByTradie.Count > 0)
                     {
                         foreach (var mess in messByTradie)
                         {
@@ -982,14 +1007,14 @@ namespace BrodClientAPI.Controller
                 {
                     var filter = Builders<TradieMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId);
 
-                var messages = await _context.TradieMessage
-                                .Find(filter)
-                                .SortBy(mess => mess.TimeStamp)
-                                .ToListAsync()
-                                .ContinueWith(task => task.Result
-                                    .GroupBy(mess => mess.ClientId)
-                                    .Select(group => group.First())
-                                    .ToList());
+                    var messages = await _context.TradieMessage
+                                    .Find(filter)
+                                    .SortBy(mess => mess.TimeStamp)
+                                    .ToListAsync()
+                                    .ContinueWith(task => task.Result
+                                        .GroupBy(mess => mess.ClientId)
+                                        .Select(group => group.First())
+                                        .ToList());
 
                 return Ok(messages);
                 }
