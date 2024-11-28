@@ -12,8 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure MongoDB settings
 builder.Services.AddSingleton<IMongoClient, MongoClient>(sp =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("MongoDbConnection"); // Ensure this is in your appsettings.json
-    return new MongoClient(connectionString);
+    var connectionString = builder.Configuration.GetConnectionString("MongoDbConnection");
+    var mongoClientSettings = MongoClientSettings.FromConnectionString(connectionString);
+    mongoClientSettings.MaxConnectionPoolSize = 500;// Ensure this is in your appsettings.json
+    mongoClientSettings.MinConnectionPoolSize = 50;  // Optional: Set a minimum pool size
+    return new MongoClient(mongoClientSettings);
 });
 
 // Register the custom MongoDB context
@@ -21,6 +24,7 @@ builder.Services.AddScoped<ApiDbContext>();
 
 // Add Controllers
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
 
 // Configure CORS to allow any origin, header, and method
 builder.Services.AddCors(options =>
@@ -32,6 +36,15 @@ builder.Services.AddCors(options =>
                .AllowAnyMethod();
     });
 });
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy("AllowSpecificOrigins", builder =>
+//    {
+//        builder.WithOrigins("https://webapp.brod.com.au")  // Allow your frontend domain
+//               .AllowAnyHeader()                          // Allow any header
+//               .AllowAnyMethod();                         // Allow any method
+//    });
+//});
 
 // Configure Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -93,6 +106,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("TradiePolicy", policy => policy.RequireRole("Tradie"));
 });
 
+
 // Register controllers
 builder.Services.AddScoped<AdminController>();
 builder.Services.AddScoped<AuthController>();
@@ -104,6 +118,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 
 app.UseCors("AllowAllCORS");
+//app.UseCors("AllowSpecificOrigins");
 
 if (app.Environment.IsDevelopment())
 {
@@ -133,6 +148,7 @@ app.UseStaticFiles();
 
 app.UseAuthentication(); // Ensure this is before UseAuthorization
 app.UseAuthorization();
+
 
 app.MapControllers();
 
