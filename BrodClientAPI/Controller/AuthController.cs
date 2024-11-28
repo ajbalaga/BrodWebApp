@@ -1029,6 +1029,25 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while gettting messages", error = ex.Message });
                 }
             }
+
+            [HttpPut("Reactivate")]
+            public async Task<IActionResult> ReactivateUser(string userId)
+            {
+                var user = await _context.User.Find(user => user._id == userId).FirstOrDefaultAsync();
+                if (user == null)
+                {
+                    return NotFound();
+                }
+
+                var update = Builders<User>.Update
+                .Set(u => u.isSuspended, false)
+                .Set(u => u.weeksSuspended, 0)
+                .Set(u => u.suspensionStartDate, null);
+
+                await _context.User.UpdateOneAsync(user => user._id == userId, update);
+
+                return Ok(new { message = "User successfully reactivated" });
+            }
     }
 
 }
