@@ -209,6 +209,7 @@ namespace BrodClientAPI.Controller
 
             var update = Builders<User>.Update
             .Set(u => u.isSuspended, false)
+            .Set(u => u.weeksSuspended, 0)
             .Set(u => u.suspensionStartDate, null);
 
             await _context.User.UpdateOneAsync(user => user._id == userId, update);
