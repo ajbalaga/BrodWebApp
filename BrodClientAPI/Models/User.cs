@@ -41,7 +41,8 @@ namespace BrodClientAPI.Models
         public string CallOutRate { get; set; }
         public int PublishedAds { get; set; } = 0;
         public bool isSuspended { get; set; } = false;
-        public string suspensionTerm { get; set; }
+        public int weeksSuspended { get; set; }
+        public DateTime? suspensionStartDate { get; set; }
         public DateTime? TimeStamp { get; set; }
 
     }

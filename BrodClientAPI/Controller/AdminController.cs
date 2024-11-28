@@ -177,11 +177,14 @@ namespace BrodClientAPI.Controller
             {
                 updateDefinitions.Add(Builders<User>.Update.Set(u => u.isSuspended, suspendUser.isSuspended));
             }
-            if (user.suspensionTerm != suspendUser.suspensionTerm)
+            if (user.weeksSuspended != suspendUser.weeksSuspended)
             {
-                updateDefinitions.Add(Builders<User>.Update.Set(u => u.suspensionTerm, suspendUser.suspensionTerm));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.weeksSuspended, suspendUser.weeksSuspended));
             }
-
+            if (user.suspensionStartDate != suspendUser.suspensionStartDate)
+            {
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.suspensionStartDate, suspendUser.suspensionStartDate));
+            }
             if (updateDefinitions.Count == 0)
             {
                 return BadRequest(new { message = "No valid fields to update" });
@@ -206,7 +209,7 @@ namespace BrodClientAPI.Controller
 
             var update = Builders<User>.Update
             .Set(u => u.isSuspended, false)
-            .Set(u => u.suspensionTerm, "");
+            .Set(u => u.suspensionStartDate, null);
 
             await _context.User.UpdateOneAsync(user => user._id == userId, update);
 
