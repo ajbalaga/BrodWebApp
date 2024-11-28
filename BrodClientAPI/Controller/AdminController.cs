@@ -177,9 +177,9 @@ namespace BrodClientAPI.Controller
             {
                 updateDefinitions.Add(Builders<User>.Update.Set(u => u.isSuspended, suspendUser.isSuspended));
             }
-            if (user.weeksSuspended != suspendUser.WeeksSuspended)
+            if (user.suspensionTerm != suspendUser.suspensionTerm)
             {
-                updateDefinitions.Add(Builders<User>.Update.Set(u => u.weeksSuspended, suspendUser.WeeksSuspended));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.suspensionTerm, suspendUser.suspensionTerm));
             }
 
             if (updateDefinitions.Count == 0)
@@ -193,6 +193,24 @@ namespace BrodClientAPI.Controller
             await _context.User.UpdateOneAsync(filter, updateDefinition);
 
             return Ok(new { message = "User suspended successfully" });
+        }
+
+        [HttpPut("Reactivate")]
+        public async Task<IActionResult> ReactivateUser(string userId)
+        {
+            var user = await _context.User.Find(user => user._id == userId).FirstOrDefaultAsync();
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            var update = Builders<User>.Update
+            .Set(u => u.isSuspended, false)
+            .Set(u => u.suspensionTerm, "");
+
+            await _context.User.UpdateOneAsync(user => user._id == userId, update);
+
+            return Ok(new { message = "User successfully reactivated" });
         }
 
     }

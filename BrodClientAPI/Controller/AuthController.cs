@@ -20,6 +20,8 @@ using Microsoft.VisualBasic;
 using System.Diagnostics;
 using static System.Net.WebRequestMethods;
 using Google.Apis.Auth;
+using Amazon.Runtime.Internal.Util;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace BrodClientAPI.Controller
 {
@@ -30,16 +32,18 @@ namespace BrodClientAPI.Controller
             private readonly ApiDbContext _context;
             private readonly IConfiguration _configuration;
             private readonly AmazonPinpointClient _pinpointClient;
+            private readonly IMemoryCache _cache;
 
-            public AuthController(ApiDbContext context, IConfiguration configuration)
+            public AuthController(ApiDbContext context, IConfiguration configuration, IMemoryCache cache)
                 {
                 _context = context;
                 _configuration = configuration;
                 var awsAccessKey = _configuration["AWS:AccessKey"];
                 var awsSecretKey = _configuration["AWS:SecretKey"];
                 var credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
-                _pinpointClient = new AmazonPinpointClient(credentials, RegionEndpoint.APSoutheast1);
-        }
+                _pinpointClient = new AmazonPinpointClient(credentials, RegionEndpoint.APSoutheast2);
+                _cache = cache;
+               }
 
             [HttpGet("allUsers")]
             public async Task<IActionResult> GetAllUsers()
@@ -51,7 +55,7 @@ namespace BrodClientAPI.Controller
                 }
                 catch (Exception ex)
                 {
-                    return StatusCode(500, new { message = "An error occurred while retrieving services", error = ex.Message });
+                    return StatusCode(500, new { message = "An error occurred while retrieving users", error = ex.Message });
                 }
             }
 
@@ -74,33 +78,32 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-
-        [HttpPost("google-login-common")]
-        public async Task<IActionResult> GoogleLoginCommon([FromBody] GoogleLogin input)
-        {
-            try
+            [HttpPost("google-login-common")]
+            public async Task<IActionResult> GoogleLoginCommon([FromBody] GoogleLogin input)
             {
-                // Check if the user already exists in the database asynchronously
-                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
-
-                if (existingUser == null)
+                try
                 {
-                    return Ok("Please sign up as a new user");
+                    // Check if the user already exists in the database asynchronously
+                    var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+
+                    if (existingUser == null)
+                    {
+                        return Ok("Please sign up as a new user");
+                    }
+
+                    // Generate a JWT token for the user (assuming it's a synchronous method)
+                    var token = GenerateJwtToken(existingUser);
+
+                    // Return the token and user information
+                    return Ok(new { token, userId = existingUser._id });
                 }
-
-                // Generate a JWT token for the user (assuming it's a synchronous method)
-                var token = GenerateJwtToken(existingUser);
-
-                // Return the token and user information
-                return Ok(new { token, userId = existingUser._id });
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
+                }
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
-            }
-        }
 
-        [HttpPost("google-login-client")]
+            [HttpPost("google-login-client")]
             public async Task<IActionResult> GoogleLoginClient([FromBody] GoogleLogin input)
             {
                 try
@@ -225,7 +228,6 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
                 }
             }
-
 
             [HttpPost("google-login-tradie")]
             public async Task<IActionResult> GoogleLoginTradie([FromBody] GoogleLogin input)
@@ -353,7 +355,6 @@ namespace BrodClientAPI.Controller
                 return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
             }
         }
-
 
             private string GenerateJwtToken(User user)
         {
@@ -487,8 +488,7 @@ namespace BrodClientAPI.Controller
                                     {
                                         Subject = new SimpleEmailPart { Data = "Important: Your OTP Code" },
                                         HtmlPart = new SimpleEmailPart
-                                        {
-                                            Data = $@"
+                                        {Data = $@"
                                                     <html>
                                                         <body>
                                                             <h2 style='color: #2E86C1;'>Official Notification</h2>
@@ -498,8 +498,7 @@ namespace BrodClientAPI.Controller
                                                             <p>Thank you,</p>
                                                             <p><em>Brod Client</em></p>
                                                         </body>
-                                                    </html>"
-                                                                                },
+                                                    </html>"},
                                         TextPart = new SimpleEmailPart
                                                                                 {
                                                                                     Data = $@"
@@ -558,7 +557,6 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-
             [HttpPost("sms-verify-otp")]
             public async Task<IActionResult> VerifySMSOtp(string phoneNumber, string userEnteredOtp)
             {
@@ -576,7 +574,6 @@ namespace BrodClientAPI.Controller
                     return BadRequest("Error: " + ex.Message);
                 }
             }
-
 
             [HttpGet("userDetails")]
             public async Task<IActionResult> GetProfileById(string id)
@@ -631,13 +628,25 @@ namespace BrodClientAPI.Controller
                 return Ok(model);
             }
 
-
             [HttpGet("allServices")]
             public async Task<IActionResult> GetAllServices()
             {
                 try
                 {
-                    var services = await _context.Services.Find(service => service.IsActive == true).ToListAsync();
+                    var cacheKey = "allServices";
+                    if (!_cache.TryGetValue(cacheKey, out List<Services> services))
+                    {
+                        services = await _context.Services.Find(service => service.IsActive == true).ToListAsync();
+
+                        var cacheEntryOptions = new MemoryCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
+                            SlidingExpiration = TimeSpan.FromMinutes(2)
+                        };
+
+                        _cache.Set(cacheKey, services, cacheEntryOptions);
+                    }
+
                     return Ok(services);
                 }
                 catch (Exception ex)
@@ -645,7 +654,6 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while retrieving services", error = ex.Message });
                 }
             }
-
 
             [HttpPost("JobPostDetails")]
             public async Task<IActionResult> GetJobPostDetails([FromBody] OwnProfile serviceProfile)
@@ -687,7 +695,6 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while getting job post", error = ex.Message });
                 }
             }
-
 
             [HttpPost("FilteredServices")]
             public async Task<IActionResult> GetFilteredServices([FromBody] JobAdPostFilter filterInput)
@@ -761,7 +768,6 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while retrieving services", error = ex.Message });
                 }
             }
-
 
             [HttpPost("AddNotification")]
             public async Task<IActionResult> AddNotification([FromBody] Notification notification)
