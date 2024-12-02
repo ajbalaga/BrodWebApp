@@ -3,9 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using BrodClientAPI.Data;
 using BrodClientAPI.Models;
 using MongoDB.Driver;
-using System.Diagnostics;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace BrodClientAPI.Controller
 {
@@ -19,33 +16,6 @@ namespace BrodClientAPI.Controller
         {
             _context = context;
         }
-
-        [HttpGet("tasks")]
-        public IActionResult GetTasks()
-        {
-            // Here you would return tasks related to the logged-in employee
-            var username = User.Identity.Name;
-            // Fetch tasks from the database based on the employee's username or ID
-            return Ok(new { message = "Here are the tasks for employee " + username });
-        }
-
-        //[HttpGet("myDetails")]
-        //public IActionResult GetTradieById([FromBody] OwnProfile getTradieProfile)
-        //{
-        //    try
-        //    {
-        //        var tradie = _context.User.Find(user => user._id == getTradieProfile.ID && user.Role == "Tradie").FirstOrDefault();
-        //        if (tradie == null)
-        //        {
-        //            return NotFound(new { message = "Tradie not found" });
-        //        }
-        //        return Ok(tradie);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = "An error occurred while getting your profile details", error = ex.Message });
-        //    }
-        //}
 
         [HttpPut("update-tradie-profile")]
         public async Task<IActionResult> UpdateTradieProfile([FromBody] UpdateUserProfile tradieProfile)
@@ -549,53 +519,59 @@ namespace BrodClientAPI.Controller
         }
 
         // estimated earning
-        private async Task<IActionResult> UpdateEstimatedEarningOfTradie([FromBody] UpdateEstimatedEarning updateEarning)
+        private async Task UpdateEstimatedEarningOfTradie([FromBody] UpdateEstimatedEarning updateEarning)
         {
             try
             {
                 var tradie = await _context.User.Find(user => user._id == updateEarning.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
-                    return NotFound(new object[0]);
+                    NotFound(new object[0]);
+                    return;
                 }
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.EstimatedEarnings, updateEarning.Earning);
                 await _context.User.UpdateOneAsync(user => user._id == updateEarning.TradieID, updateDefinition);
 
-                return Ok(new { message = "Earning updated: " + updateEarning.Earning.ToString() });
+                Ok(new { message = "Earning updated: " + updateEarning.Earning.ToString() });
+                return;
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred while updating earning", error = ex.Message });
+                StatusCode(500, new { message = "An error occurred while updating earning", error = ex.Message });
+                return;
             }
         }
 
         // published ads
-        private async Task<IActionResult> UpdatePublishedAdsCount([FromBody] UpdateCount updateCount)
+        private async Task UpdatePublishedAdsCount([FromBody] UpdateCount updateCount)
         {
             try
             {
                 var tradie = await _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
-                    return NotFound(new object[0]);
+                    NotFound(new object[0]);
+                    return;
                 }
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.PublishedAds, updateCount.Count);
                 await _context.User.UpdateOneAsync(user => user._id == updateCount.TradieID, updateDefinition);
 
-                return Ok(new { message = "Published jobs count updated: " + updateCount.Count.ToString() });
+                Ok(new { message = "Published jobs count updated: " + updateCount.Count.ToString() });
+                return;
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred while updating published job count", error = ex.Message });
+                StatusCode(500, new { message = "An error occurred while updating published job count", error = ex.Message });
+                return;
             }
         }
 
         // in progress jobs
-        private async Task<IActionResult> UpdateActiveJobsCount([FromBody] UpdateCount updateCount)
+        private async Task UpdateActiveJobsCount([FromBody] UpdateCount updateCount)
         {
             try
             {
@@ -603,16 +579,18 @@ namespace BrodClientAPI.Controller
                 var updateDefinition = Builders<User>.Update.Set(u => u.ActiveJobs, updateCount.Count);
                 await _context.User.UpdateOneAsync(user => user._id == updateCount.TradieID, updateDefinition);
 
-                return Ok(new { message = "Active jobs count updated: " + updateCount.Count.ToString() });
+                Ok(new { message = "Active jobs count updated: " + updateCount.Count.ToString() });
+                return;
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred while updating active job count", error = ex.Message });
+                StatusCode(500, new { message = "An error occurred while updating active job count", error = ex.Message });
+                return;
             }
         }
 
         // completed jobs
-        private async Task<IActionResult> UpdateCompletedJobs([FromBody] UpdateCount updateCount)
+        private async Task UpdateCompletedJobs([FromBody] UpdateCount updateCount)
         {
             try
             {
@@ -620,14 +598,15 @@ namespace BrodClientAPI.Controller
                 var updateDefinition = Builders<User>.Update.Set(u => u.CompletedJobs, updateCount.Count);
                 await _context.User.UpdateOneAsync(user => user._id == updateCount.TradieID, updateDefinition);
 
-                return Ok(new { message = "Completed jobs count updated: " + updateCount.Count.ToString() });
+                Ok(new { message = "Completed jobs count updated: " + updateCount.Count.ToString() });
+                return;
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred while updating completed job count", error = ex.Message });
+                StatusCode(500, new { message = "An error occurred while updating completed job count", error = ex.Message });
+                return;
             }
         }
-
 
     }
 }

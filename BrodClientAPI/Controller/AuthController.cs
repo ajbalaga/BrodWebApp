@@ -6,21 +6,10 @@ using Microsoft.IdentityModel.Tokens;
 using BrodClientAPI.Data;
 using BrodClientAPI.Models;
 using MongoDB.Driver;
-using Twilio;
-using Twilio.Rest.Api.V2010.Account;
-using Twilio.Types;
-using SendGrid;
-using SendGrid.Helpers.Mail;
-using MongoDB.Bson;
 using Amazon;
 using Amazon.Pinpoint;
 using Amazon.Pinpoint.Model;
 using Amazon.Runtime;
-using Microsoft.VisualBasic;
-using System.Diagnostics;
-using static System.Net.WebRequestMethods;
-using Google.Apis.Auth;
-using Amazon.Runtime.Internal.Util;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace BrodClientAPI.Controller
@@ -176,7 +165,7 @@ namespace BrodClientAPI.Controller
                                             Data = $@"
                                                     <html>
                                                         <body style='font-family: Arial, sans-serif;'>
-                                                            <h2 style='color: #2E86C1;'>Official Notification</h2>
+                                                            <h2 style='color: #000000;'>Official Notification</h2>
                                                             <p>Dear User,</p>
                                                             <p>Your temporary password for Brod Client is: <strong>{password}</strong></p>
                                                             <p>Please use this password to log in and change it to a new one as soon as possible.</p>
@@ -302,7 +291,7 @@ namespace BrodClientAPI.Controller
                                             Data = $@"
                                                     <html>
                                                         <body style='font-family: Arial, sans-serif;'>
-                                                            <h2 style='color: #2E86C1;'>Official Notification</h2>
+                                                            <h2 style='color: #000000;'>Official Notification</h2>
                                                             <p>Dear User,</p>
                                                             <p>Your temporary password for Brod Client is: <strong>{password}</strong></p>
                                                             <p>You can login using email and password or still your google login.</p>
@@ -357,30 +346,30 @@ namespace BrodClientAPI.Controller
         }
 
             private string GenerateJwtToken(User user)
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var secretKey = _configuration["JwtSettings:SecretKey"];
-            var issuer = _configuration["JwtSettings:Issuer"];
-            var audience = _configuration["JwtSettings:Audience"];
-
-            var key = Encoding.ASCII.GetBytes(secretKey);
-
-            var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new[]
-                {
-                            new Claim(ClaimTypes.Name, user.Username),
-                            new Claim(ClaimTypes.Role, user.Role)
-                        }),
-                Expires = DateTime.UtcNow.AddHours(1),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-                Issuer = issuer,
-                Audience = audience
-            };
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var secretKey = _configuration["JwtSettings:SecretKey"];
+                var issuer = _configuration["JwtSettings:Issuer"];
+                var audience = _configuration["JwtSettings:Audience"];
 
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
-        }
+                var key = Encoding.ASCII.GetBytes(secretKey);
+
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = new ClaimsIdentity(new[]
+                    {
+                                new Claim(ClaimTypes.Name, user.Username),
+                                new Claim(ClaimTypes.Role, user.Role)
+                            }),
+                    Expires = DateTime.UtcNow.AddHours(1),
+                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
+                    Issuer = issuer,
+                    Audience = audience
+                };
+
+                var token = tokenHandler.CreateToken(tokenDescriptor);
+                return tokenHandler.WriteToken(token);
+            }
 
             [HttpPost("signup")]
             public async Task<IActionResult> Signup([FromBody] User userSignupDto)
@@ -403,7 +392,6 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while signing up", error = ex.Message });
                 }
             }
-
 
             [HttpPost("sms-otp")]
             public async Task<IActionResult> SendSMSOTP(string phoneNumber)
@@ -491,7 +479,7 @@ namespace BrodClientAPI.Controller
                                         {Data = $@"
                                                     <html>
                                                         <body>
-                                                            <h2 style='color: #2E86C1;'>Official Notification</h2>
+                                                            <h2 style='color: #000000;'>Official Notification</h2>
                                                             <p>Dear User,</p>
                                                             <p>Your One-Time Password (OTP) code is: <strong>{otp}</strong></p>
                                                             <p>Please use this code to complete your verification process. If you did not request this code, please contact our support team immediately.</p>
@@ -592,9 +580,7 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred while getting your profile details", error = ex.Message });
                 }
             }
-
-
-            // Fetch tradie details by ID
+            
             [HttpPost("tradieProfileByID")]
             public async Task<IActionResult> GetTradieById([FromBody] OwnProfile getTradieProfile)
             {
@@ -821,9 +807,9 @@ namespace BrodClientAPI.Controller
                                                     .Find(notif => notif.userID == userId && notif.isRead == false)
                                                     .ToListAsync();
                     if (notifVal == null)
-                        {
-                            return Ok("No new notification!");
-                        }
+                    {
+                        return Ok("No new notification!");
+                    }
 
                     foreach (var notif in notifVal) {
                         var filter = Builders<Notification>.Filter.Eq(n => n._id, notif._id);
@@ -880,8 +866,6 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                    
-
                     var tradie = await _context.User.Find(user => user._id == message.TradieId).FirstOrDefaultAsync();
                     if (tradie == null)
                     {
@@ -906,8 +890,6 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-
-
                     var client = await _context.User.Find(user => user._id == message.ClientId).FirstOrDefaultAsync();
                     if (client == null)
                     {
@@ -932,19 +914,19 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                var filter = Builders<ClientMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId);
+                    var filter = Builders<ClientMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId);
 
-                var messages = await _context.ClientMessage
-                                .Find(filter)
-                                .SortBy(mess => mess.TimeStamp)
-                                .ToListAsync()
-                                .ContinueWith(task => task.Result
-                                    .GroupBy(mess => mess.TradieId)
-                                    .Select(group => group.First())
-                                    .ToList());
+                    var messages = await _context.ClientMessage
+                        .Find(filter)
+                        .SortBy(mess => mess.TimeStamp)
+                        .ToListAsync()
+                        .ContinueWith(task => task.Result
+                            .GroupBy(mess => mess.TradieId)
+                            .Select(group => group.First())
+                            .ToList());
 
-                return Ok(messages);
-            }
+                    return Ok(messages);
+                }
                 catch (Exception ex)
                 {
                     return StatusCode(500, new { message = "An error occurred while gettting messages", error = ex.Message });
@@ -984,12 +966,12 @@ namespace BrodClientAPI.Controller
 
 
                     if (messByClient != null && messByClient.Count > 0)
+                    {
+                        foreach (var mess in messByClient)
                         {
-                            foreach (var mess in messByClient)
-                            {
-                                combinedMessages.ClientMessages.Add(mess);
-                            }
+                            combinedMessages.ClientMessages.Add(mess);
                         }
+                    }
 
                     if (messByTradie != null && messByTradie.Count > 0)
                     {
@@ -998,7 +980,7 @@ namespace BrodClientAPI.Controller
                             combinedMessages.TradieMessages.Add(mess);
                         }
                     }
-                return Ok(combinedMessages);
+                    return Ok(combinedMessages);
                 }
                 catch (Exception ex)
                 {
@@ -1011,9 +993,9 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                    var filter = Builders<TradieMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId);
+                    var filter = Builders<ClientMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId);
 
-                    var messages = await _context.TradieMessage
+                    var messages = await _context.ClientMessage
                                     .Find(filter)
                                     .SortBy(mess => mess.TimeStamp)
                                     .ToListAsync()
@@ -1022,7 +1004,7 @@ namespace BrodClientAPI.Controller
                                         .Select(group => group.First())
                                         .ToList());
 
-                return Ok(messages);
+                    return Ok(messages);
                 }
                 catch (Exception ex)
                 {
