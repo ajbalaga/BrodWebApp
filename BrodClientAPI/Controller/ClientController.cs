@@ -349,129 +349,82 @@ namespace BrodClientAPI.Controller
         }
 
         // job offer count
-        private async Task<IActionResult> UpdateJobOfferCount([FromBody] UpdateCount updateCount)
+        private async Task UpdateJobOfferCount([FromBody] UpdateCount updateCount)
         {
             try
             {
                 var tradie = await _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    NotFound();
+                    return;
                 }
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.PendingOffers, updateCount.Count);
                 await _context.User.UpdateOneAsync(user => user._id == updateCount.TradieID, updateDefinition);
 
-                return Ok(new { message = "Job offer count updated: " + updateCount.Count.ToString() });
+                Ok(new { message = "Job offer count updated: " + updateCount.Count.ToString() });
+                return;
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred while updating Job offer count", error = ex.Message });
+                StatusCode(500, new { message = "An error occurred while updating Job offer count", error = ex.Message });
+                return;
             }
         }
 
         // completed jobs
-        private async Task<IActionResult> UpdateCompletedJobs([FromBody] UpdateCount updateCount)
+        private async Task UpdateCompletedJobs([FromBody] UpdateCount updateCount)
         {
             try
             {
                 var tradie = await _context.User.Find(user => user._id == updateCount.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    NotFound();
+                    return;
                 }
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.CompletedJobs, updateCount.Count);
                 await _context.User.UpdateOneAsync(user => user._id == updateCount.TradieID, updateDefinition);
 
-                return Ok(new { message = "Completed jobs count updated: " + updateCount.Count.ToString() });
+                Ok(new { message = "Completed jobs count updated: " + updateCount.Count.ToString() });
+                return;
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred while updating completed job count", error = ex.Message });
+                StatusCode(500, new { message = "An error occurred while updating completed job count", error = ex.Message });
+                return;
             }
         }
 
         // estimated earning
-        private async Task<IActionResult> UpdateEstimatedEarningOfTradie([FromBody] UpdateEstimatedEarning updateEarning)
+        private async Task UpdateEstimatedEarningOfTradie([FromBody] UpdateEstimatedEarning updateEarning)
         {
             try
             {
                 var tradie = await _context.User.Find(user => user._id == updateEarning.TradieID && user.Role == "Tradie").FirstOrDefaultAsync();
                 if (tradie == null)
                 {
-                    return NotFound();
+                    NotFound();
+                    return;
                 }
 
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.EstimatedEarnings, updateEarning.Earning);
                 await _context.User.UpdateOneAsync(user => user._id == updateEarning.TradieID, updateDefinition);
 
-                return Ok(new { message = "Earning updated: " + updateEarning.Earning.ToString() });
+                Ok(new { message = "Earning updated: " + updateEarning.Earning.ToString() });
+                return;
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred while updating earning", error = ex.Message });
+                StatusCode(500, new { message = "An error occurred while updating earning", error = ex.Message });
+                return;
             }
         }
 
-
-        //[HttpPost("AddReviewToJobPost")]
-        //public IActionResult AddReviewToJobPost([FromBody] AddReviewToJobPostAd reviewDetails)
-        //{
-        //    try
-        //    {
-        //        var client = _context.User.Find(user => user._id == reviewDetails.ClientID && user.Role == "Client").FirstOrDefault();
-        //        if (client == null)
-        //        {
-        //            return NotFound();
-        //        }
-
-        //        var existingService = _context.Services.Find(service => service._id == reviewDetails.ServiceID).FirstOrDefault();
-        //        if (existingService == null)
-        //        {   
-        //            return NotFound();
-        //        }
-
-        //        var review = new Reviews { 
-        //        _id = "",
-        //        ServiceID = reviewDetails.ServiceID,
-        //        ClientID = reviewDetails.ClientID,
-        //        ClientUserName = client.Username,
-        //        ClientCity = client.City,
-        //        ClientState = client.State,
-        //        ClientPostalCode = client.PostalCode,
-        //        StarRating = reviewDetails.StarRating,
-        //        ReviewDescription = reviewDetails.ReviewDescription                             
-        //        };
-        //        var updateDefinitions = new List<UpdateDefinition<Services>>();
-        //        _context.Reviews.InsertOne(review);
-
-        //        // Prepare the update to append the review to the ClientReviews list in the Service
-        //        var update = Builders<Services>.Update.Push(s => s.ClientReviews, new Review
-        //        {
-        //            ReviewDescription = reviewDetails.ReviewDescription,
-        //            StarRating = reviewDetails.StarRating,
-        //            ClientID = reviewDetails.ClientID,
-        //            ClientUserName = client.Username,
-        //            ClientCity = client.City,
-        //            ClientState = client.State,
-        //            ClientPostalCode = client.PostalCode
-        //        });
-
-        //        // Update the service with the new review
-        //        _context.Services.UpdateOne(service => service._id == reviewDetails.ServiceID, update);
-
-
-        //        return Ok(new { message = "Review post added successfully" });
-
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = "An error occurred while adding review to job post", error = ex.Message });
-        //    }
-        //}
     }
 }
