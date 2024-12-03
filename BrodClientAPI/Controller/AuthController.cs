@@ -97,10 +97,10 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                var password = PasswordGenerator.GeneratePassword();
+                    var password = PasswordGenerator.GeneratePassword();
 
-                // Check if the user already exists in the database asynchronously
-                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+                    // Check if the user already exists in the database asynchronously
+                    var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
                     
                     if (existingUser == null)
                     {
@@ -142,27 +142,27 @@ namespace BrodClientAPI.Controller
                         };
 
                     
-                    // Create the request to send the email message
-                    var request = new SendMessagesRequest
-                    {
-                        ApplicationId = _configuration["AWS:PinpointAppId"],
-                        MessageRequest = new MessageRequest
+                        // Create the request to send the email message
+                        var request = new SendMessagesRequest
                         {
-                            Addresses = new Dictionary<string, AddressConfiguration>
-                    {
-                        { input.email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
-                    },
-                            MessageConfiguration = new DirectMessageConfiguration
+                            ApplicationId = _configuration["AWS:PinpointAppId"],
+                            MessageRequest = new MessageRequest
                             {
-                                EmailMessage = new EmailMessage
+                                Addresses = new Dictionary<string, AddressConfiguration>
                                 {
-                                    FromAddress = _configuration["AWS:FromEmailAddress"],
-                                    SimpleEmail = new SimpleEmail
+                                    { input.email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
+                                },
+                                MessageConfiguration = new DirectMessageConfiguration
+                                {
+                                    EmailMessage = new EmailMessage
                                     {
-                                        Subject = new SimpleEmailPart { Data = "Important: Your Temporary Password for Brod Client" },
-                                        HtmlPart = new SimpleEmailPart
+                                        FromAddress = _configuration["AWS:FromEmailAddress"],
+                                        SimpleEmail = new SimpleEmail
                                         {
-                                            Data = $@"
+                                            Subject = new SimpleEmailPart { Data = "Important: Your Temporary Password for Brod Client" },
+                                            HtmlPart = new SimpleEmailPart
+                                            {
+                                                Data = $@"
                                                     <html>
                                                         <body style='font-family: Arial, sans-serif;'>
                                                             <h2 style='color: #000000;'>Official Notification</h2>
@@ -174,10 +174,10 @@ namespace BrodClientAPI.Controller
                                                             <p><em>Brod Client Support Team</em></p>
                                                         </body>
                                                     </html>"
-                                        },
-                                        TextPart = new SimpleEmailPart
-                                        {
-                                            Data = $@"
+                                            },
+                                            TextPart = new SimpleEmailPart
+                                            {
+                                                Data = $@"
                                                     Official Notification
 
                                                     Dear User,
@@ -191,19 +191,19 @@ namespace BrodClientAPI.Controller
                                                     Thank you,
 
                                                     Brod Client Support Team"
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    };
+                        };
 
-                    // Send the email through Pinpoint
-                    var response = await _pinpointClient.SendMessagesAsync(request);
+                        // Send the email through Pinpoint
+                        var response = await _pinpointClient.SendMessagesAsync(request);
 
-                    // Insert the new user asynchronously
-                    await _context.User.InsertOneAsync(newUser);
-                    existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync(); ;
+                        // Insert the new user asynchronously
+                        await _context.User.InsertOneAsync(newUser);
+                        existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync(); ;
                     }
 
                     // Generate a JWT token for the user (assuming it's a synchronous method)
@@ -344,32 +344,6 @@ namespace BrodClientAPI.Controller
                 return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
             }
         }
-
-            private string GenerateJwtToken(User user)
-            {
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var secretKey = _configuration["JwtSettings:SecretKey"];
-                var issuer = _configuration["JwtSettings:Issuer"];
-                var audience = _configuration["JwtSettings:Audience"];
-
-                var key = Encoding.ASCII.GetBytes(secretKey);
-
-                var tokenDescriptor = new SecurityTokenDescriptor
-                {
-                    Subject = new ClaimsIdentity(new[]
-                    {
-                                new Claim(ClaimTypes.Name, user.Username),
-                                new Claim(ClaimTypes.Role, user.Role)
-                            }),
-                    Expires = DateTime.UtcNow.AddHours(1),
-                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-                    Issuer = issuer,
-                    Audience = audience
-                };
-
-                var token = tokenHandler.CreateToken(tokenDescriptor);
-                return tokenHandler.WriteToken(token);
-            }
 
             [HttpPost("signup")]
             public async Task<IActionResult> Signup([FromBody] User userSignupDto)
@@ -620,7 +594,7 @@ namespace BrodClientAPI.Controller
                 try
                 {
                     var cacheKey = "allServices";
-                    if (!_cache.TryGetValue(cacheKey, out List<Services> services))
+                    if (!_cache.TryGetValue(cacheKey, out List<Services>? services))
                     {
                         services = await _context.Services.Find(service => service.IsActive == true).ToListAsync();
 
@@ -939,9 +913,9 @@ namespace BrodClientAPI.Controller
                 try
                 {
                     var filter = Builders<ClientMessage>.Filter.And(
-                                    Builders<ClientMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
-                                    Builders<ClientMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
-                                );
+                        Builders<ClientMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
+                        Builders<ClientMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
+                    );
 
                     var messByClient = await _context.ClientMessage
                         .Find(filter)
@@ -949,9 +923,9 @@ namespace BrodClientAPI.Controller
                         .ToListAsync();
 
                     var filter2 = Builders<TradieMessage>.Filter.And(
-                                        Builders<TradieMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
-                                        Builders<TradieMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
-                                    );
+                        Builders<TradieMessage>.Filter.Eq(mess => mess.ClientId, getMessage.ClientId),
+                        Builders<TradieMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId)
+                    );
 
                     var messByTradie = await _context.TradieMessage
                         .Find(filter2)
@@ -993,9 +967,9 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
-                    var filter = Builders<ClientMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId);
+                    var filter = Builders<TradieMessage>.Filter.Eq(mess => mess.TradieId, getMessage.TradieId);
 
-                    var messages = await _context.ClientMessage
+                    var messages = await _context.TradieMessage
                                     .Find(filter)
                                     .SortBy(mess => mess.TimeStamp)
                                     .ToListAsync()
@@ -1029,6 +1003,31 @@ namespace BrodClientAPI.Controller
                 await _context.User.UpdateOneAsync(user => user._id == userId, update);
 
                 return Ok(new { message = "User successfully reactivated" });
+            }
+            private string GenerateJwtToken(User user)
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var secretKey = _configuration["JwtSettings:SecretKey"];
+                var issuer = _configuration["JwtSettings:Issuer"];
+                var audience = _configuration["JwtSettings:Audience"];
+
+                var key = Encoding.ASCII.GetBytes(secretKey);
+
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.Name, user.Username),
+                        new Claim(ClaimTypes.Role, user.Role)
+                    }),
+                    Expires = DateTime.UtcNow.AddHours(1),
+                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
+                    Issuer = issuer,
+                    Audience = audience
+                };
+
+                var token = tokenHandler.CreateToken(tokenDescriptor);
+                return tokenHandler.WriteToken(token);
             }
     }
 
