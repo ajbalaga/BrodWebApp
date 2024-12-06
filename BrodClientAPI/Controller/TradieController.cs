@@ -137,6 +137,8 @@ namespace BrodClientAPI.Controller
                         updateDefinitions.Add(Builders<User>.Update.Set(u => u.Services, tradieProfile.Services));
                     }
                 }
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Update Profile Details"));
 
                 if (updateDefinitions.Count == 0)
                 {
@@ -176,6 +178,8 @@ namespace BrodClientAPI.Controller
                         updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, tradieProfile.ProfilePicture));
                     }
                 }
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Update Profile Picture"));
 
                 if (updateDefinitions.Count == 0)
                 {
@@ -291,6 +295,18 @@ namespace BrodClientAPI.Controller
 
                 var updateDefinition = Builders<Services>.Update.Set(u => u.IsActive, updateJobAdsIsActive.IsActive);
                 await _context.Services.UpdateOneAsync(service => service._id == updateJobAdsIsActive.JobID, updateDefinition);
+                
+                var tradieProfile = await _context.User.Find(u => u._id == publishedJobPost.UserID).FirstOrDefaultAsync();
+                if (tradieProfile == null)
+                {
+                    return NotFound(new object[0]);
+                }
+                
+                var updateDefinition2 = Builders<User>.Update
+                    .Set(u => u.LastActivityTimeStamp, DateTime.Now)
+                    .Set(u => u.LastActivity, "Publish Job Ad");
+                await _context.User.UpdateOneAsync(u => u._id == publishedJobPost.UserID, updateDefinition2);
+                
 
                 return Ok(new { message = "Active jobs count successfully updated" });
             }
@@ -397,6 +413,12 @@ namespace BrodClientAPI.Controller
                 {
                     return NotFound(new object[0]);
                 }
+                
+                var updateDefinition2 = Builders<User>.Update
+                    .Set(u => u.LastActivityTimeStamp, DateTime.Now)
+                    .Set(u => u.LastActivity, "Update Job Ad");
+                await _context.User.UpdateOneAsync(u => u._id == tradie._id, updateDefinition2);
+                
 
                 if (updatedJobPost.IsActive)
                 {

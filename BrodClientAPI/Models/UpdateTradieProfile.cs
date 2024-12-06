@@ -34,6 +34,7 @@
         public List<string> CertificationFilesUploaded { get; set; } // List of Base64 strings for certification files
         public List<string> Services { get; set; }
         public string CallOutRate { get; set; }
+        public DateTime? LastActivityTimestamp { get; set; }
     }
 
 }

@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BrodClientAPI.Data;
 using MongoDB.Driver;
-using System.Text.RegularExpressions;
 
 namespace BrodClientAPI.Controller
 {
@@ -197,8 +196,6 @@ namespace BrodClientAPI.Controller
 
             return Ok(new { message = "User suspended successfully" });
         }
-
-        
 
     }
 
