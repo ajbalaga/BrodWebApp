@@ -1004,6 +1004,26 @@ namespace BrodClientAPI.Controller
 
                 return Ok(new { message = "User successfully reactivated" });
             }
+            [HttpPut("ChangePassword")]
+            public async Task<IActionResult> ChangePassword(ChangePassword changePass)
+            {
+                var user = await _context.User.Find(user => user.Email == changePass.Email).FirstOrDefaultAsync();
+                if (user == null)
+                {
+                    return NotFound();
+                }
+                
+                if(changePass.OldPassword == user.Password){
+                    await _context.User.UpdateOneAsync(
+                        Builders<User>.Filter.Eq(u => u.Email, changePass.Email),
+                        Builders<User>.Update.Set(u => u.Password, changePass.NewPassword)
+                    );
+                    return Ok(new { message = "User successfully changed password" });
+                }
+
+
+                return Ok(new { message = "Invalid Password" });
+            }
             private string GenerateJwtToken(User user)
             {
                 var tokenHandler = new JwtSecurityTokenHandler();

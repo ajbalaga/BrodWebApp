@@ -44,6 +44,8 @@ namespace BrodClientAPI.Models
         public int weeksSuspended { get; set; }
         public DateTime? suspensionStartDate { get; set; }
         public DateTime? TimeStamp { get; set; }
+        public DateTime? LastActivityTimeStamp { get; set; }
+        public string LastActivity { get; set; }
 
     }
 
