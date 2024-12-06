@@ -67,7 +67,7 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-            [HttpPost("google-login-common")]
+            [HttpPost("sso-login-common")] 
             public async Task<IActionResult> GoogleLoginCommon([FromBody] GoogleLogin input)
             {
                 try
@@ -91,8 +91,8 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
                 }
             }
-
-            [HttpPost("google-login-client")]
+            //for apple and google login for client
+            [HttpPost("sso-client")]
             public async Task<IActionResult> GoogleLoginClient([FromBody] GoogleLogin input)
             {
                 try
@@ -217,8 +217,8 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
                 }
             }
-
-            [HttpPost("google-login-tradie")]
+            //for apple and google login for tradie
+            [HttpPost("sso-tradie")]
             public async Task<IActionResult> GoogleLoginTradie([FromBody] GoogleLogin input)
             {
             try
