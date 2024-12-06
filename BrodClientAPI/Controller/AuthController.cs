@@ -67,7 +67,7 @@ namespace BrodClientAPI.Controller
                 }
             }
 
-            [HttpPost("sso-login-common")]
+            [HttpPost("sso-login-common")] 
             public async Task<IActionResult> GoogleLoginCommon([FromBody] GoogleLogin input)
             {
                 try
