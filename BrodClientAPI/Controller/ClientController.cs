@@ -76,6 +76,9 @@ namespace BrodClientAPI.Controller
                 {
                     updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, clientProfile.ProfilePicture ?? string.Empty));
                 }
+                
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Update profile"));
 
                 if (updateDefinitions.Count == 0)
                 {
@@ -105,6 +108,13 @@ namespace BrodClientAPI.Controller
                 {
                     return NotFound();
                 }
+                var updateDefinitions = new List<UpdateDefinition<User>>();
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Hired a tradie"));
+                var updateDefinition = Builders<User>.Update.Combine(updateDefinitions);
+                var filter = Builders<User>.Filter.Eq(u => u._id, hireTradieDetails.ClientID);
+                await _context.User.UpdateOneAsync(filter, updateDefinition);
+                
 
                 var existingService = await _context.Services.Find(service => service._id == hireTradieDetails.ServiceID).FirstOrDefaultAsync();
                 if (existingService == null)
@@ -302,6 +312,13 @@ namespace BrodClientAPI.Controller
                     var addEarning = new UpdateEstimatedEarning { TradieID = updateJobStatus.TradieID, Earning = earningAmount };
                     await UpdateEstimatedEarningOfTradie(addEarning);
                 }
+                
+                var updateDefinitions2 = new List<UpdateDefinition<User>>();
+                updateDefinitions2.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions2.Add(Builders<User>.Update.Set(u => u.LastActivity, "Updated job status"));
+                var updateDefinition2 = Builders<User>.Update.Combine(updateDefinitions2);
+                var filter2 = Builders<User>.Filter.Eq(u => u._id, updateJobStatus.TradieID);
+                await _context.User.UpdateOneAsync(filter2, updateDefinition2);
 
                 return Ok(new { message = "Job status updated successfully" });
             }
@@ -321,8 +338,15 @@ namespace BrodClientAPI.Controller
                 {
                     return NotFound();
                 }
+                
+                var updateDefinitions = new List<UpdateDefinition<User>>();
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Hired a tradie"));
+                var updateDefinition = Builders<User>.Update.Combine(updateDefinitions);
+                var filter = Builders<User>.Filter.Eq(u => u._id, rating.clientId);
+                await _context.User.UpdateOneAsync(filter, updateDefinition);
+                
                 rating.clientLocation = $"{client.City},{client.State} {client.PostalCode}";
-
                 await _context.Rating.InsertOneAsync(rating);
 
                 await _context.Jobs.UpdateOneAsync(

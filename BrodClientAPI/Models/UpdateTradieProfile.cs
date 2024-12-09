@@ -4,13 +4,8 @@
     {
         public string ID { get; set; }  // ObjectId in MongoDB
         public string AvailabilityToWork { get; set; }
-        public int ActiveJobs { get; set; } = 0;
-        public int PendingOffers { get; set; } = 0;
-        public int CompletedJobs { get; set; } = 0;
-        public decimal EstimatedEarnings { get; set; } = 0;
         public string Username { get; set; }
         public string Email { get; set; }
-        public string Password { get; set; }
         public string Role { get; set; } // "Admin", "Client", "Tradie"
         public string BusinessPostCode { get; set; }
         public string FirstName { get; set; }
@@ -34,7 +29,6 @@
         public List<string> CertificationFilesUploaded { get; set; } // List of Base64 strings for certification files
         public List<string> Services { get; set; }
         public string CallOutRate { get; set; }
-        public DateTime? LastActivityTimestamp { get; set; }
     }
 
 }

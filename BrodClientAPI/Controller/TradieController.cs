@@ -210,6 +210,16 @@ namespace BrodClientAPI.Controller
                 {
                     return NotFound(new object[0]);
                 }
+                
+                var updateDefinitions = new List<UpdateDefinition<User>>();
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Added Job Post Ad"));
+
+                var updateDefinition = Builders<User>.Update.Combine(updateDefinitions);
+                var filter = Builders<User>.Filter.Eq(u => u._id, jobPost.UserID);
+
+                await _context.User.UpdateOneAsync(filter, updateDefinition);
+
 
                 var existingService = await _context.Services.Find(service => service.JobAdTitle == jobPost.JobAdTitle).FirstOrDefaultAsync();
                 if (existingService != null)
@@ -240,6 +250,7 @@ namespace BrodClientAPI.Controller
             try
             {
                 await _context.Services.DeleteOneAsync(job => job._id == jobId);
+                
                 return Ok(new { message = "Job deleted successfully" });
             }
             catch (Exception ex)
@@ -256,6 +267,15 @@ namespace BrodClientAPI.Controller
                 var publishedJobPost = await _context.Services
                     .Find(service => service.UserID == userId && service.IsActive == true)
                     .ToListAsync();
+                
+                var updateDefinitions = new List<UpdateDefinition<User>>();
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Published Job Post Ad"));
+
+                var updateDefinition = Builders<User>.Update.Combine(updateDefinitions);
+                var filter = Builders<User>.Filter.Eq(u => u._id, userId);
+
+                await _context.User.UpdateOneAsync(filter, updateDefinition);
 
                 return Ok(publishedJobPost);
             }
@@ -431,7 +451,14 @@ namespace BrodClientAPI.Controller
                     var addCountJobPublished = new UpdateCount { TradieID = updatedJobPost.UserID, Count = jobCount };
                     await UpdatePublishedAdsCount(addCountJobPublished);
                 }
+                var updateDefinitions3 = new List<UpdateDefinition<User>>();
+                updateDefinitions3.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions3.Add(Builders<User>.Update.Set(u => u.LastActivity, "Added Job Post Ad"));
 
+                var updateDefinition3 = Builders<User>.Update.Combine(updateDefinitions3);
+                var filter2 = Builders<User>.Filter.Eq(u => u._id, updatedJobPost.UserID);
+
+                await _context.User.UpdateOneAsync(filter2, updateDefinition3);
                 return Ok(new { message = "Job post ad updated successfully" });
             }
             catch (Exception ex)
@@ -461,7 +488,7 @@ namespace BrodClientAPI.Controller
         }
 
         [HttpPut("UpdateJobStatus")]
-        public IActionResult UpdateJobStatus([FromBody] UpdateJobStatus updateJobStatus)
+        public async Task<IActionResult> UpdateJobStatus([FromBody] UpdateJobStatus updateJobStatus)
         {
             try
             {
@@ -472,6 +499,8 @@ namespace BrodClientAPI.Controller
                 }
 
                 var tradie = _context.User.Find(user => user._id == updateJobStatus.TradieID && user.Role.ToLower() == "tradie").FirstOrDefault();
+                
+                
                 if (tradie == null)
                 {
                     return Ok(new { message = "Tradie not found" });
@@ -502,8 +531,6 @@ namespace BrodClientAPI.Controller
 
                 _context.Jobs.UpdateOne(filter, updateDefinition);
 
-
-
                 if (updateJobStatus.Status.ToLower() == "in progress")
                 {
                     var addCountJobActive = new UpdateCount { TradieID = updateJobStatus.TradieID, Count = tradie.ActiveJobs + 1 };
@@ -527,11 +554,16 @@ namespace BrodClientAPI.Controller
                     UpdateEstimatedEarningOfTradie(addEarning);
                 } //add count for completed jobs and update earning
 
+                var updateDefinitions3 = new List<UpdateDefinition<User>>();
+                updateDefinitions3.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
+                updateDefinitions3.Add(Builders<User>.Update.Set(u => u.LastActivity, "Updated the job status"));
+
+                var updateDefinition3 = Builders<User>.Update.Combine(updateDefinitions3);
+                var filter3 = Builders<User>.Filter.Eq(u => u._id, tradie._id);
+
+                await _context.User.UpdateOneAsync(filter3, updateDefinition3);
+                
                 return Ok(new { message = "Job status updated successfully" });
-
-
-
-
 
             }
             catch (Exception ex)
