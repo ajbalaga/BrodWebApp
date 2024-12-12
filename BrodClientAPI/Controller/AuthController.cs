@@ -1024,6 +1024,21 @@ namespace BrodClientAPI.Controller
 
                 return Ok(new { message = "Invalid Password" });
             }
+            [HttpPost("check-email")]
+            public async Task<IActionResult> CheckEmail([FromBody] string email)
+            {
+                var existingUser = await _context.User.Find(u => u.Email == email).FirstOrDefaultAsync();
+                if (existingUser != null)
+                {
+                    return BadRequest("Email already used!");
+                }
+                else
+                {
+                    return Ok("Email not used.");
+                }
+
+                
+            }
             private string GenerateJwtToken(User user)
             {
                 var tokenHandler = new JwtSecurityTokenHandler();
