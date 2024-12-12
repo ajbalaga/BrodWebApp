@@ -353,7 +353,7 @@ namespace BrodClientAPI.Controller
                     // Check if the user already exists
                     var existingUser = await _context.User.Find(u => u.Email == userSignupDto.Email).FirstOrDefaultAsync();
                     if (existingUser != null)
-                        return BadRequest("User already exists");
+                        return BadRequest("Email already used!");
 
                     // Add the new user to the database
                     await _context.User.InsertOneAsync(userSignupDto);
