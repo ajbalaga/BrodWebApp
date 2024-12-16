@@ -197,35 +197,7 @@ namespace BrodClientAPI.Controller
             return Ok(new { message = "User suspended successfully" });
         }
         
-        [HttpPut("user/deactivate")]
-        public async Task<IActionResult> UpdateTradieStatus(string userId)
-        {
-            var user = await _context.User.Find(user => user._id == userId).FirstOrDefaultAsync();
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            // Update the status
-            var updateDefinition = Builders<User>.Update.Set(u => u.Status, "DEACTIVATED");
-            await _context.User.UpdateOneAsync(user => user._id == userId, updateDefinition);
-
-            return Ok(new { message = "User deactivated successfully" });
-        }
-        [HttpPut("user/delete")]
-        public async Task<IActionResult> DeleteUser(string userId)
-        {
-            var user = await _context.User.Find(user => user._id == userId).FirstOrDefaultAsync();
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            // Delete the user
-            await _context.User.DeleteOneAsync(user => user._id == userId);
-
-            return Ok(new { message = "User deleted successfully" });
-        }
+        
 
 
     }
