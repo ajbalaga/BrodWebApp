@@ -149,7 +149,7 @@ namespace BrodClientAPI.Controller
         [HttpPut("tradie/update-status")]
         public async Task<IActionResult> UpdateTradieStatus([FromBody] UpdateTradieStatus updateTradieStatus)
         {
-            var tradie = await _context.User.Find(user => user._id == updateTradieStatus.ID && user.Role == "Tradie").FirstOrDefaultAsync();
+            var tradie = await _context.User.Find(user => user._id == updateTradieStatus.ID).FirstOrDefaultAsync();
             if (tradie == null)
             {
                 return NotFound();

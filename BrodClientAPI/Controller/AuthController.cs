@@ -998,12 +998,14 @@ namespace BrodClientAPI.Controller
                 var update = Builders<User>.Update
                 .Set(u => u.isSuspended, false)
                 .Set(u => u.weeksSuspended, 0)
-                .Set(u => u.suspensionStartDate, null);
+                .Set(u => u.suspensionStartDate, null)
+                .Set(u => u.Status, "Approved");
 
                 await _context.User.UpdateOneAsync(user => user._id == userId, update);
 
                 return Ok(new { message = "User successfully reactivated" });
             }
+
             [HttpPut("ChangePassword")]
             public async Task<IActionResult> ChangePassword(ChangePassword changePass)
             {
@@ -1024,6 +1026,7 @@ namespace BrodClientAPI.Controller
 
                 return Ok(new { message = "Invalid Password" });
             }
+
             [HttpPost("check-email")]
             public async Task<IActionResult> CheckEmail([FromBody] string email)
             {
@@ -1039,8 +1042,9 @@ namespace BrodClientAPI.Controller
 
                 
             }
+
             [HttpPut("user/deactivate")]
-            public async Task<IActionResult> UpdateTradieStatus(string userId)
+            public async Task<IActionResult> DeactivateUser(string userId)
             {
                 var user = await _context.User.Find(user => user._id == userId).FirstOrDefaultAsync();
                 if (user == null)
@@ -1049,11 +1053,80 @@ namespace BrodClientAPI.Controller
                 }
 
                 // Update the status
-                var updateDefinition = Builders<User>.Update.Set(u => u.Status, "DEACTIVATED");
+                var updateDefinition = Builders<User>.Update.Set(u => u.Status, "Deactivated");
                 await _context.User.UpdateOneAsync(user => user._id == userId, updateDefinition);
+                
+                var admins = await _context.User.Find(user => user.Role == "Admin").ToListAsync();
+                foreach (var admin in admins)
+                {
+                    // Create the request to send the email message
+                    var request = new SendMessagesRequest
+                    {
+                        ApplicationId = _configuration["AWS:PinpointAppId"],
+                        MessageRequest = new MessageRequest
+                        {
+                            Addresses = new Dictionary<string, AddressConfiguration>
+                {
+                    { admin.Email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
+                },
+                            MessageConfiguration = new DirectMessageConfiguration
+                            {
+                                EmailMessage = new EmailMessage
+                                {
+                                    FromAddress = _configuration["AWS:FromEmailAddress"],
+                                    SimpleEmail = new SimpleEmail
+                                    {
+                                        Subject = new SimpleEmailPart { Data = "User Account Deactivation Request" },
+                                        HtmlPart = new SimpleEmailPart
+                                        {
+                                            Data = $@"
+                                                    <html>
+                                                        <body style='font-family: Arial, sans-serif; color: #000000;'>
+                                                            <h2 style='color: #000000;'>User Account Deactivation Request</h2>
+                                                            <p>Dear Admin,</p>
+                                                            <p>The following user has requested to delete their account and delete all associated data:</p>
+                                                            <ul style='color: #000000;'>
+                                                                <li><strong>User Email:</strong> {user.Email}</li>
+                                                                <li><strong>Request Date:</strong> {DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")} (UTC)</li>
+                                                            </ul>
+                                                            <p>Please take the necessary actions to process this request promptly.</p>
+                                                            <p>Thank you,</p>
+                                                            <p><strong>Brod Client System</strong></p>
+                                                        </body>
+                                                    </html>"
+                                        },
+                                        TextPart = new SimpleEmailPart
+                                        {
+                                            Data = $@"
+                                                    User Account Deactivation Request
+
+                                                    Dear Admin,
+
+                                                    The following user has requested to delete their account and delete all associated data:
+
+                                                    - User Email: {user.Email}
+                                                    - Request Date: {DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")} (UTC)
+
+                                                    Please take the necessary actions to process this request promptly.
+
+                                                    Thank you,
+                                                    Brod Client System"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    // Send the email through Pinpoint
+                    var response = await _pinpointClient.SendMessagesAsync(request);
+
+                }                
+
 
                 return Ok(new { message = "User deactivated successfully" });
             }
+
             [HttpPut("user/delete")]
             public async Task<IActionResult> DeleteUser(string userId)
             {
@@ -1063,11 +1136,111 @@ namespace BrodClientAPI.Controller
                     return NotFound();
                 }
 
+                if (user.Role == "Tradie") {
+                    var jobs = await _context.Jobs.Find(job => job.TradieID == user._id).ToListAsync();
+                    if (jobs != null)
+                    {
+                        foreach (var x in jobs)
+                        {
+                            await _context.Jobs.DeleteOneAsync(job => job._id == x._id);
+                        }
+                    }
+
+                    var services = await _context.Services.Find(ser => ser.UserID == user._id).ToListAsync();
+                    if (services != null)
+                    {
+                        foreach (var x in services)
+                        {
+                            await _context.Services.DeleteOneAsync(ser => ser._id == x._id);
+                        }
+                    }
+
+                    var clientMessages = await _context.ClientMessage.Find(ser => ser.TradieId == user._id).ToListAsync();
+                    if (clientMessages != null)
+                    {
+                        foreach (var x in clientMessages)
+                        {
+                            await _context.ClientMessage.DeleteOneAsync(ser => ser._id == x._id);
+                        }
+                    }
+
+                    var tradieMessages = await _context.TradieMessage.Find(ser => ser.TradieId == user._id).ToListAsync();
+                    if (tradieMessages != null)
+                    {
+                        foreach (var x in tradieMessages)
+                        {
+                            await _context.TradieMessage.DeleteOneAsync(ser => ser._id == x._id);
+                        }
+                    }
+
+                    var notifs = await _context.Notification.Find(ser => ser.userID == user._id).ToListAsync();
+                    if (notifs != null)
+                    {
+                        foreach (var x in notifs)
+                        {
+                            await _context.Notification.DeleteOneAsync(ser => ser._id == x._id);
+                        }
+                    }
+                }
+
                 // Delete the user
                 await _context.User.DeleteOneAsync(user => user._id == userId);
 
+
                 return Ok(new { message = "User deleted successfully" });
             }
+
+            [HttpPut("tradie/ScrubData")]
+            public async Task<IActionResult> ScrubData()
+            {
+                var jobs = await _context.Jobs.Find(job => job.TradieName == "").ToListAsync();
+                if (jobs != null)
+                {
+                    foreach (var x in jobs)
+                    {
+                        await _context.Jobs.DeleteOneAsync(job => job._id == x._id);
+                    }
+                }
+
+                var services = await _context.Services.Find(ser => ser.UserID == "").ToListAsync();
+                if (services != null)
+                {
+                    foreach (var x in services)
+                    {
+                        await _context.Services.DeleteOneAsync(ser => ser._id == x._id);
+                    }
+                }
+
+                var clientMessages = await _context.ClientMessage.Find(ser => ser.TradieName == "").ToListAsync();
+                if (clientMessages != null)
+                {
+                    foreach (var x in clientMessages)
+                    {
+                        await _context.ClientMessage.DeleteOneAsync(ser => ser._id == x._id);
+                    }
+                }
+
+                var tradieMessages = await _context.TradieMessage.Find(ser => ser.TradieId == "").ToListAsync();
+                if (tradieMessages != null)
+                {
+                    foreach (var x in tradieMessages)
+                    {
+                        await _context.TradieMessage.DeleteOneAsync(ser => ser._id == x._id);
+                    }
+                }
+
+                var notifs = await _context.Notification.Find(ser => ser.userID == "").ToListAsync();
+                if (notifs != null)
+                {
+                    foreach (var x in notifs)
+                    {
+                        await _context.Notification.DeleteOneAsync(ser => ser._id == x._id);
+                    }
+                }
+
+            return Ok(new { message = "User connections deleted successfully" });
+            }
+
             private string GenerateJwtToken(User user)
             {
                 var tokenHandler = new JwtSecurityTokenHandler();
