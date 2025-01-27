@@ -25,27 +25,27 @@ namespace BrodClientAPI.Models
         public string AustralianBusinessNumber { get; set; }
         public string TypeofWork { get; set; }
         public string Status { get; set; }
-        public string ReasonforDeclinedApplication { get; set; }
-        public string AboutMeDescription { get; set; }
-        public string Website { get; set; }
-        public string FacebookAccount { get; set; }
-        public string IGAccount { get; set; }
+        public string? ReasonforDeclinedApplication { get; set; }
+        public string? AboutMeDescription { get; set; }
+        public string? Website { get; set; }
+        public string? FacebookAccount { get; set; }
+        public string? IGAccount { get; set; }
         public List<string> Services { get; set; }
-        public string ProfilePicture { get; set; } // Base64 string for profile picture
+        public string? ProfilePicture { get; set; } // Base64 string for profile picture
         public List<string> CertificationFilesUploaded { get; set; }// List of Base64 strings for certification files
-        public string AvailabilityToWork { get; set; }
+        public string? AvailabilityToWork { get; set; }
         public int ActiveJobs { get; set; } = 0;
         public int PendingOffers { get; set; } = 0;
         public int CompletedJobs { get; set; } = 0;
         public decimal EstimatedEarnings { get; set; }= 0;
-        public string CallOutRate { get; set; }
+        public string? CallOutRate { get; set; }
         public int PublishedAds { get; set; } = 0;
         public bool isSuspended { get; set; } = false;
         public int weeksSuspended { get; set; }
         public DateTime? suspensionStartDate { get; set; }
         public DateTime? TimeStamp { get; set; }
         public DateTime? LastActivityTimeStamp { get; set; }
-        public string LastActivity { get; set; }
+        public string? LastActivity { get; set; }
 
     }
 

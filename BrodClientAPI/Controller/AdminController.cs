@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BrodClientAPI.Data;
 using MongoDB.Driver;
+using SendGrid.Helpers.Mail;
 
 namespace BrodClientAPI.Controller
 {
@@ -12,10 +13,11 @@ namespace BrodClientAPI.Controller
     public class AdminController : ControllerBase 
     {
         private readonly ApiDbContext _context;
-
-        public AdminController(ApiDbContext context)
+        private readonly IConfiguration _configuration;
+        public AdminController(ApiDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration; 
         }
 
         [HttpGet("users")]
@@ -158,6 +160,73 @@ namespace BrodClientAPI.Controller
             // Update the status
             var updateDefinition = Builders<User>.Update.Set(u => u.Status, updateTradieStatus.Status);
             await _context.User.UpdateOneAsync(user => user._id == updateTradieStatus.ID, updateDefinition);
+
+            // SendGrid API Key from configuration
+            var sendGridApiKey = _configuration["SendGrid:ApiKey"];
+            var fromEmailAddress = _configuration["SendGrid:FromEmailAddress"];
+
+            // Initialize SendGrid client
+            var client = new SendGrid.SendGridClient(sendGridApiKey);
+            var subject = "";
+            var plainTextContent = "";
+            var htmlContent = "";
+            if (updateTradieStatus.Status.ToLower() == "approved") {
+                subject = "Your Account Has Been Approved!";
+                plainTextContent = $@"
+                    Hi {tradie.FirstName},
+
+                    Congratulations! We're happy to inform you that your account with BROD has been approved. You can now start creating and managing your job ads.
+
+                    If you need any help getting started, feel free to reach out to our support team at support@brod.com.au.
+
+                    Welcome aboard, and we look forward to helping you succeed!
+
+                    Best regards,
+                    BROD Team";
+                htmlContent = $@"
+                    <html>
+                        <body style='font-family: Arial, sans-serif; color: #000000;'>
+                            <p>Hi {tradie.FirstName},</p>
+                            <br><p>Congratulations! We're happy to inform you that your account with BROD has been approved. You can now start creating and managing your job ads.</p>
+                            <br><p>If you need any help getting started, feel free to reach out to our support team at support@brod.com.au.</p>
+                            <br><p>Welcome aboard, and we look forward to helping you succeed!</p>
+                            <br><p>Best regards,</p>
+                            <p><strong>BROD Team</strong></p>
+                        </body>
+                    </html>";
+            }
+            if (updateTradieStatus.Status.ToLower() == "declined")
+            {
+                subject = "Your Account Application Has Been Declined";
+                plainTextContent = $@"
+                    Hi {tradie.FirstName},
+
+                    Thank you for applying to BROD. Unfortunately, we were unable to approve your account at this time.
+
+                    If you'd like to know more about why your application was declined or if you need assistance with the next steps, please feel free to contact our support team at support@brod.com.au. We're happy to help you verify any missing information or address any concerns.
+
+                    We appreciate your understanding and look forward to resolving this with you.
+
+                    Best regards,
+                    BROD Team";
+                htmlContent = $@"
+                    <html>
+                        <body style='font-family: Arial, sans-serif; color: #000000;'>
+                            <p>Hi {tradie.FirstName},</p>
+                            <br><p>Thank you for applying to BROD. Unfortunately, we were unable to approve your account at this time.</p>
+                            <br><p>If you'd like to know more about why your application was declined or if you need assistance with the next steps, please feel free to contact our support team at support@brod.com.au. We're happy to help you verify any missing information or address any concerns.</p>
+                            <br><p>We appreciate your understanding and look forward to resolving this with you.</p>
+                            <br><p>Best regards,</p>
+                            <p><strong>BROD Team</strong></p>
+                        </body>
+                    </html>";
+            }
+
+            // Prepare email message
+            var from = new SendGrid.Helpers.Mail.EmailAddress(fromEmailAddress, "Brod System");
+            var to = new SendGrid.Helpers.Mail.EmailAddress(tradie.Email);
+
+            var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
 
             return Ok(new { message = "Tradie status updated successfully" });
         }
