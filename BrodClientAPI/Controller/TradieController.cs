@@ -163,7 +163,7 @@ namespace BrodClientAPI.Controller
         {
             try
             {
-                var tradie = await _context.User.Find(user => user._id == tradieProfile.ID && user.Role == "Tradie").FirstOrDefaultAsync();
+                var tradie = await _context.User.Find(user => user._id == tradieProfile.ID).FirstOrDefaultAsync();
                 if (tradie == null)
                 {
                     return NotFound(new object[0]);
@@ -171,13 +171,7 @@ namespace BrodClientAPI.Controller
 
                 var updateDefinitions = new List<UpdateDefinition<User>>();
 
-                if (tradieProfile.ProfilePicture != null && tradieProfile.ProfilePicture.Length > 0)
-                {
-                    if (!string.IsNullOrEmpty(tradie.ProfilePicture))
-                    {
-                        updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, tradieProfile.ProfilePicture));
-                    }
-                }
+                updateDefinitions.Add(Builders<User>.Update.Set(u => u.ProfilePicture, tradieProfile.ProfilePicture));
                 updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivityTimeStamp, DateTime.Now));
                 updateDefinitions.Add(Builders<User>.Update.Set(u => u.LastActivity, "Update Profile Picture"));
 

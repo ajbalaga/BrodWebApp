@@ -6,11 +6,13 @@ using Microsoft.IdentityModel.Tokens;
 using BrodClientAPI.Data;
 using BrodClientAPI.Models;
 using MongoDB.Driver;
-using Amazon;
-using Amazon.Pinpoint;
-using Amazon.Pinpoint.Model;
-using Amazon.Runtime;
 using Microsoft.Extensions.Caching.Memory;
+using BrodClientAPI.Service;
+using SendGrid.Helpers.Mail;
+using Twilio;
+using Twilio.Rest.Api.V2010.Account;
+using Twilio.Types;
+using System.Diagnostics;
 
 namespace BrodClientAPI.Controller
 {
@@ -20,27 +22,24 @@ namespace BrodClientAPI.Controller
         {
             private readonly ApiDbContext _context;
             private readonly IConfiguration _configuration;
-            private readonly AmazonPinpointClient _pinpointClient;
             private readonly IMemoryCache _cache;
+            private readonly TwilioService _twilioService;
 
-            public AuthController(ApiDbContext context, IConfiguration configuration, IMemoryCache cache)
-                {
+            public AuthController(ApiDbContext context, IConfiguration configuration, IMemoryCache cache, TwilioService twilioService)
+            {
                 _context = context;
-                _configuration = configuration;
-                var awsAccessKey = _configuration["AWS:AccessKey"];
-                var awsSecretKey = _configuration["AWS:SecretKey"];
-                var credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
-                _pinpointClient = new AmazonPinpointClient(credentials, RegionEndpoint.APSoutheast2);
+                _configuration = configuration;                
                 _cache = cache;
-               }
+                _twilioService = twilioService;
+            }
 
             [HttpGet("allUsers")]
             public async Task<IActionResult> GetAllUsers()
             {
                 try
                 {
-                    var users = await _context.User.Find(_ => true).ToListAsync();
-                    return Ok(users);
+                    var users = _context.User.AsQueryable().ToList();
+                return Ok(users);
                 }
                 catch (Exception ex)
                 {
@@ -91,7 +90,7 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
                 }
             }
-            //for apple and google login for client
+
             [HttpPost("sso-client")]
             public async Task<IActionResult> GoogleLoginClient([FromBody] GoogleLogin input)
             {
@@ -101,7 +100,7 @@ namespace BrodClientAPI.Controller
 
                     // Check if the user already exists in the database asynchronously
                     var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
-                    
+
                     if (existingUser == null)
                     {
                         // If the user does not exist, create a new user
@@ -110,7 +109,7 @@ namespace BrodClientAPI.Controller
                             _id = "",
                             Email = input.email,
                             Username = input.given_name,
-                            Password= password,
+                            Password = password,
                             Role = "Client",
                             FirstName = input.given_name,
                             LastName = input.family_name,
@@ -129,7 +128,7 @@ namespace BrodClientAPI.Controller
                             Website = "",
                             FacebookAccount = "",
                             IGAccount = "",
-                            Services = [], // Initialize the list
+                            Services = new List<string>(), // Initialize the list
                             ProfilePicture = input.picture,
                             CertificationFilesUploaded = new List<string>(), // Initialize the list
                             AvailabilityToWork = "",
@@ -141,69 +140,54 @@ namespace BrodClientAPI.Controller
                             PublishedAds = 0
                         };
 
-                    
-                        // Create the request to send the email message
-                        var request = new SendMessagesRequest
+                        // SendGrid API Key from configuration
+                        var sendGridApiKey = _configuration["SendGrid:ApiKey"];
+                        var fromEmailAddress = _configuration["SendGrid:FromEmailAddress"];
+
+                        // Initialize SendGrid client
+                        var client = new SendGrid.SendGridClient(sendGridApiKey);
+
+                        // Prepare email message
+                        var from = new SendGrid.Helpers.Mail.EmailAddress(fromEmailAddress, "Brod Support Team");
+                        var to = new SendGrid.Helpers.Mail.EmailAddress(input.email);
+                        var subject = "Important: Your Temporary Password for Brod";
+                        var plainTextContent = $@"
+                    Dear User,
+
+                    Your temporary password for Brod is: {password}
+
+                    Please use this password to log in and change it to a new one as soon as possible.
+
+                    If you did not request this password, please contact our support team immediately.
+
+                    Best regards,
+                    BROD Team";
+
+                        var htmlContent = $@"
+                    <html>
+                        <body style='font-family: Arial, sans-serif;'>
+                            <p>Dear User,</p>
+                            <br><p>Your temporary password for Brod is: <strong>{password}</strong></p>
+                            <p>Please use this password to log in and change it to a new one as soon as possible.</p>
+                            <p>If you did not request this password, please contact our support team immediately.</p>
+                            <br><p>Best regards,</p>
+                            <p><em>BROD Team</em></p>
+                        </body>
+                    </html>";
+
+                        var msg = SendGrid.Helpers.Mail.MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+
+                        // Send the email
+                        var response = await client.SendEmailAsync(msg);
+
+                        if (response.StatusCode != System.Net.HttpStatusCode.Accepted)
                         {
-                            ApplicationId = _configuration["AWS:PinpointAppId"],
-                            MessageRequest = new MessageRequest
-                            {
-                                Addresses = new Dictionary<string, AddressConfiguration>
-                                {
-                                    { input.email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
-                                },
-                                MessageConfiguration = new DirectMessageConfiguration
-                                {
-                                    EmailMessage = new EmailMessage
-                                    {
-                                        FromAddress = _configuration["AWS:FromEmailAddress"],
-                                        SimpleEmail = new SimpleEmail
-                                        {
-                                            Subject = new SimpleEmailPart { Data = "Important: Your Temporary Password for Brod Client" },
-                                            HtmlPart = new SimpleEmailPart
-                                            {
-                                                Data = $@"
-                                                    <html>
-                                                        <body style='font-family: Arial, sans-serif;'>
-                                                            <h2 style='color: #000000;'>Official Notification</h2>
-                                                            <p>Dear User,</p>
-                                                            <p>Your temporary password for Brod Client is: <strong>{password}</strong></p>
-                                                            <p>Please use this password to log in and change it to a new one as soon as possible.</p>
-                                                            <p>If you did not request this password, please contact our support team immediately.</p>
-                                                            <p>Thank you,</p>
-                                                            <p><em>Brod Client Support Team</em></p>
-                                                        </body>
-                                                    </html>"
-                                            },
-                                            TextPart = new SimpleEmailPart
-                                            {
-                                                Data = $@"
-                                                    Official Notification
-
-                                                    Dear User,
-
-                                                    Your temporary password for Brod Client is: {password}
-
-                                                    Please use this password to log in and change it to a new one as soon as possible.
-
-                                                    If you did not request this password, please contact our support team immediately.
-
-                                                    Thank you,
-
-                                                    Brod Client Support Team"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        };
-
-                        // Send the email through Pinpoint
-                        var response = await _pinpointClient.SendMessagesAsync(request);
+                            return BadRequest("Failed to send the temporary password email.");
+                        }
 
                         // Insert the new user asynchronously
                         await _context.User.InsertOneAsync(newUser);
-                        existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync(); ;
+                        existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
                     }
 
                     // Generate a JWT token for the user (assuming it's a synchronous method)
@@ -217,133 +201,122 @@ namespace BrodClientAPI.Controller
                     return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
                 }
             }
+
             //for apple and google login for tradie
+
             [HttpPost("sso-tradie")]
             public async Task<IActionResult> GoogleLoginTradie([FromBody] GoogleLogin input)
             {
-            try
-            {
-                var password = PasswordGenerator.GeneratePassword();
-
-                // Check if the user already exists in the database asynchronously
-                var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();                
-
-                if (existingUser == null)
+                try
                 {
-                    // If the user does not exist, create a new user
-                    var newUser = new User
-                    {
-                        _id = "",
-                        Email = input.email,
-                        Username = input.given_name,
-                        Password = password,
-                        Role = "Tradie",
-                        FirstName = input.given_name,
-                        LastName = input.family_name,
-                        ContactNumber = "",
-                        BusinessPostCode = "",
-                        City = "",
-                        State = "",
-                        PostalCode = "",
-                        ProximityToWork = "",
-                        RegisteredBusinessName = "",
-                        AustralianBusinessNumber = "",
-                        TypeofWork = "",
-                        Status = "New",
-                        ReasonforDeclinedApplication = "",
-                        AboutMeDescription = "",
-                        Website = "",
-                        FacebookAccount = "",
-                        IGAccount = "",
-                        Services = [], // Initialize the list
-                        ProfilePicture = input.picture,
-                        CertificationFilesUploaded = new List<string>(), // Initialize the list
-                        AvailabilityToWork = "",
-                        ActiveJobs = 0,
-                        PendingOffers = 0,
-                        CompletedJobs = 0,
-                        EstimatedEarnings = 0,
-                        CallOutRate = "",
-                        PublishedAds = 0
-                    };
+                    var password = PasswordGenerator.GeneratePassword();
 
+                    // Check if the user already exists in the database asynchronously
+                    var existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
 
-                    // Create the request to send the email message
-                    var request = new SendMessagesRequest
+                    if (existingUser == null)
                     {
-                        ApplicationId = _configuration["AWS:PinpointAppId"],
-                        MessageRequest = new MessageRequest
+                        // If the user does not exist, create a new user
+                        var newUser = new User
                         {
-                            Addresses = new Dictionary<string, AddressConfiguration>
-                    {
-                        { input.email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
-                    },
-                            MessageConfiguration = new DirectMessageConfiguration
-                            {
-                                EmailMessage = new EmailMessage
-                                {
-                                    FromAddress = _configuration["AWS:FromEmailAddress"],
-                                    SimpleEmail = new SimpleEmail
-                                    {
-                                        Subject = new SimpleEmailPart { Data = "Important: Your Temporary Password for Brod Client" },
-                                        HtmlPart = new SimpleEmailPart
-                                        {
-                                            Data = $@"
-                                                    <html>
-                                                        <body style='font-family: Arial, sans-serif;'>
-                                                            <h2 style='color: #000000;'>Official Notification</h2>
-                                                            <p>Dear User,</p>
-                                                            <p>Your temporary password for Brod Client is: <strong>{password}</strong></p>
-                                                            <p>You can login using email and password or still your google login.</p>
-                                                            <p>If you did not request this password, please contact our support team immediately.</p>
-                                                            <p>Thank you,</p>
-                                                            <p><em>Brod Client Support Team</em></p>
-                                                        </body>
-                                                    </html>"
-                                        },
-                                        TextPart = new SimpleEmailPart
-                                        {
-                                            Data = $@"
-                                                    Official Notification
+                            _id = "",
+                            Email = input.email,
+                            Username = input.given_name,
+                            Password = password,
+                            Role = "Tradie",
+                            FirstName = input.given_name,
+                            LastName = input.family_name,
+                            ContactNumber = "",
+                            BusinessPostCode = "",
+                            City = "",
+                            State = "",
+                            PostalCode = "",
+                            ProximityToWork = "",
+                            RegisteredBusinessName = "",
+                            AustralianBusinessNumber = "",
+                            TypeofWork = "",
+                            Status = "New",
+                            ReasonforDeclinedApplication = "",
+                            AboutMeDescription = "",
+                            Website = "",
+                            FacebookAccount = "",
+                            IGAccount = "",
+                            Services = new List<string>(), // Initialize the list
+                            ProfilePicture = input.picture,
+                            CertificationFilesUploaded = new List<string>(), // Initialize the list
+                            AvailabilityToWork = "",
+                            ActiveJobs = 0,
+                            PendingOffers = 0,
+                            CompletedJobs = 0,
+                            EstimatedEarnings = 0,
+                            CallOutRate = "",
+                            PublishedAds = 0
+                        };
 
-                                                    Dear User,
+                        // SendGrid API Key from configuration
+                        var sendGridApiKey = _configuration["SendGrid:ApiKey"];
+                        var fromEmailAddress = _configuration["SendGrid:FromEmailAddress"];
 
-                                                    Your temporary password for Brod Client is: {password}
+                        // Initialize SendGrid client
+                        var client = new SendGrid.SendGridClient(sendGridApiKey);
 
-                                                    You can login using email and password or still your google login.
+                        // Prepare email message
+                        var from = new SendGrid.Helpers.Mail.EmailAddress(fromEmailAddress, "Brod Support Team");
+                        var to = new SendGrid.Helpers.Mail.EmailAddress(input.email);
+                        var subject = "Important: Your Temporary Password for Brod";
+                        var plainTextContent = $@"
+                    Dear User,
 
-                                                    If you did not request this password, please contact our support team immediately.
+                    Your temporary password for Brod is: {password}
 
-                                                    Thank you,
+                    You can login using email and password or your Google login.
 
-                                                    Brod Client Support Team"
-                                        }
-                                    }
-                                }
-                            }
+                    If you did not request this password, please contact our support team immediately.
+
+                    Best regards,
+
+                    BROD Team";
+
+                        var htmlContent = $@"
+                    <html>
+                        <body style='font-family: Arial, sans-serif;'>
+                            <p>Dear User,</p>
+                            <br><p>Your temporary password for Brod is: <strong>{password}</strong></p>
+                            <p>You can login using email and password or your Google login.</p>
+                            <p>If you did not request this password, please contact our support team immediately.</p>
+                            
+                            <br><p>Best regards,</p>
+                            <p><em>BROD Team</em></p>
+                        </body>
+                    </html>";
+
+                        var msg = SendGrid.Helpers.Mail.MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+
+                        // Send the email
+                        var response = await client.SendEmailAsync(msg);
+
+                        if (response.StatusCode != System.Net.HttpStatusCode.Accepted)
+                        {
+                            return BadRequest("Failed to send the temporary password email.");
                         }
-                    };
 
-                    // Send the email through Pinpoint
-                    var response = await _pinpointClient.SendMessagesAsync(request);
+                        // Insert the new user asynchronously
+                        await _context.User.InsertOneAsync(newUser);
 
-                    // Insert the new user asynchronously
-                    await _context.User.InsertOneAsync(newUser);
+                        existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+                    }
 
-                    existingUser = await _context.User.Find(u => u.Email == input.email).FirstOrDefaultAsync();
+                    // Generate a JWT token for the user (assuming it's a synchronous method)
+                    var token = GenerateJwtToken(existingUser);
+
+                    // Return the token and user information
+                    return Ok(new { token, userId = existingUser._id });
                 }
-
-                // Generate a JWT token for the user (assuming it's a synchronous method)
-                var token = GenerateJwtToken(existingUser);
-
-                // Return the token and user information
-                return Ok(new { token, userId = existingUser._id });
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
+                }
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred during Google login", error = ex.Message });
-            }
-        }
 
             [HttpPost("signup")]
             public async Task<IActionResult> Signup([FromBody] User userSignupDto)
@@ -357,6 +330,52 @@ namespace BrodClientAPI.Controller
 
                     // Add the new user to the database
                     await _context.User.InsertOneAsync(userSignupDto);
+
+                    if (userSignupDto.Role.ToLower()=="tradie") {
+                    
+                    // SendGrid API Key from configuration
+                    var sendGridApiKey = _configuration["SendGrid:ApiKey"];
+                    var fromEmailAddress = _configuration["SendGrid:FromEmailAddress"];
+
+                    var client = new SendGrid.SendGridClient(sendGridApiKey);
+                    var subject = "";
+                    var plainTextContent = "";
+                    var htmlContent = "";
+                        subject = "Your Account is Under Review";
+                        plainTextContent = $@"
+                        Hi {userSignupDto.FirstName},
+
+                       Thanks for signing up with BROD. Your account is currently under review, which typically takes 3-5 business days.
+
+                        During this time, you won't be able to create job ads. Once your account is approved, you'll be able to start posting and managing your listings.
+
+                        If you have any questions, feel free to contact us at support@brod.com.au.
+
+                        Thank you for your patience.
+
+                        Best regards,
+                        BROD Team";
+                        
+                        htmlContent = $@"
+                        <html>
+                            <body style='font-family: Arial, sans-serif; color: #000000;'>
+                                <p>Hi {userSignupDto.FirstName},</p>
+                                <br><p>Thanks for signing up with BROD. Your account is currently under review, which typically takes 3-5 business days.</p>
+                                <br><p>During this time, you won't be able to create job ads. Once your account is approved, you'll be able to start posting and managing your listings.</p>
+                                <br><p>If you have any questions, feel free to contact us at support@brod.com.au.</p>
+                                <br><p>Thank you for your patience.</p>
+                                <br><p>Best regards,</p>
+                                <p><strong>BROD Team</strong></p>
+                            </body>
+                        </html>";
+                        
+
+                        // Prepare email message
+                        var from = new SendGrid.Helpers.Mail.EmailAddress(fromEmailAddress, "Brod System");
+                        var to = new SendGrid.Helpers.Mail.EmailAddress(userSignupDto.Email);
+
+                        var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+                }
 
                     // Return a success response
                     return Ok(new { message = "Signup successful" });
@@ -372,40 +391,29 @@ namespace BrodClientAPI.Controller
             {
                 try
                 {
+                    
                     var otp = new Random().Next(100000, 999999).ToString();
-
                     var otpSms = new OTPSMS
                     {
                         phoneNumber = phoneNumber,
                         OTP = otp,
                         expirationMin = DateTime.Now.AddMinutes(5),
                     };
-
                     _context.OtpSMS.InsertOne(otpSms);
+               
+                    var accountSid2 = _configuration["Twilio:AccountSID"];
+                    var authToken2 = _configuration["Twilio:AuthToken"];
+                    var fromPhoneNumber = _configuration["Twilio:FromPhoneNumber"];
 
-                    var request = new SendMessagesRequest
-                    {
-                        ApplicationId = _configuration["AWS:PinpointAppId"],
-                        MessageRequest = new MessageRequest
-                        {
-                            Addresses = new Dictionary<string, AddressConfiguration>
-                            {
-                                { phoneNumber, new AddressConfiguration { ChannelType = "SMS" } }
-                            },
-                            MessageConfiguration = new DirectMessageConfiguration
-                            {
-                                SMSMessage = new SMSMessage
-                                {
-                                    Body = $"Your OTP code is {otp}",
-                                    MessageType = "TRANSACTIONAL"
-                                }
-                            }
-                        }
-                    };
-
-                    var response = await _pinpointClient.SendMessagesAsync(request);
+                    TwilioClient.Init(accountSid2, authToken2);
+                    var messageOptions = new CreateMessageOptions(
+                      new PhoneNumber(phoneNumber));
+                    messageOptions.From = new PhoneNumber(fromPhoneNumber);
+                    messageOptions.Body = $"Your OTP code for BROD registration is {otp}.";
+                    var message = MessageResource.Create(messageOptions);
 
                     return Ok("OTP sent successfully.");
+                
                 }
                 catch (Exception ex)
                 {
@@ -421,7 +429,7 @@ namespace BrodClientAPI.Controller
                     // Generate OTP
                     var otp = new Random().Next(100000, 999999).ToString();
 
-                    // Store OTP in database with expiration time
+                    // Store OTP in the database with expiration time
                     var otpEmail = new OTPEMAIL
                     {
                         email = email,
@@ -431,68 +439,51 @@ namespace BrodClientAPI.Controller
 
                     _context.OtpEmail.InsertOne(otpEmail);
 
-                    // Create the request to send the email message
-                    var request = new SendMessagesRequest
-                    {
-                        ApplicationId = _configuration["AWS:PinpointAppId"],
-                        MessageRequest = new MessageRequest
-                        {
-                            Addresses = new Dictionary<string, AddressConfiguration>
-                    {
-                        { email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
-                    },
-                            MessageConfiguration = new DirectMessageConfiguration
-                            {
-                                EmailMessage = new EmailMessage
-                                {
-                                    FromAddress = _configuration["AWS:FromEmailAddress"],
-                                    SimpleEmail = new SimpleEmail
-                                    {
-                                        Subject = new SimpleEmailPart { Data = "Important: Your OTP Code" },
-                                        HtmlPart = new SimpleEmailPart
-                                        {Data = $@"
-                                                    <html>
-                                                        <body>
-                                                            <h2 style='color: #000000;'>Official Notification</h2>
-                                                            <p>Dear User,</p>
-                                                            <p>Your One-Time Password (OTP) code is: <strong>{otp}</strong></p>
-                                                            <p>Please use this code to complete your verification process. If you did not request this code, please contact our support team immediately.</p>
-                                                            <p>Thank you,</p>
-                                                            <p><em>Brod Client</em></p>
-                                                        </body>
-                                                    </html>"},
-                                        TextPart = new SimpleEmailPart
-                                                                                {
-                                                                                    Data = $@"
-                                                                                            Official Notification
+                    // SendGrid API Key from configuration
+                    var sendGridApiKey = _configuration["SendGrid:ApiKey"];
+                    var fromEmailAddress = _configuration["SendGrid:FromEmailAddress"];
 
-                                                                                            Dear User,
+                    // Initialize SendGrid client
+                    var client = new SendGrid.SendGridClient(sendGridApiKey);
 
-                                                                                            Your One-Time Password (OTP) code is: {otp}
+                    // Prepare email message
+                    var from = new SendGrid.Helpers.Mail.EmailAddress(fromEmailAddress, "Brod.com.au Support");
+                    var to = new SendGrid.Helpers.Mail.EmailAddress(email);
+                    var subject = "Important: Your OTP Code";
+                    var plainTextContent = $@"
+                Dear User,
 
-                                                                                            Please use this code to complete your verification process. If you did not request this code, please contact our support team immediately.
+                Your One-Time Password (OTP) code is: <strong>{otp}
 
-                                                                                            Thank you,
+                Please use this code to complete your verification process. If you did not request this code, please contact our support team immediately.
 
-                                                                                            Stefan"
-                                                                                }
-                                    }
-                                }
-                            }
-                        }
-                    };
+                Best regards,
+                BROD Team";
+                    var htmlContent = $@"
+                <html>
+                    <body>
+                        <p>Dear User,</p>
+                        <br><p>Your One-Time Password (OTP) code is: <strong>{otp}</strong></p>
+                        <p>Please use this code to complete your verification process. If you did not request this code, please contact our support team immediately.</p>
+                        <br><p>Best regards,</p>
+                        <p><em>BROD Team</em></p>
+                    </body>
+                </html>";
 
-                    // Send the email through Pinpoint
-                    var response = await _pinpointClient.SendMessagesAsync(request);
+                    var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
 
-                    // Check if the email was successfully sent
-                    if (response.MessageResponse.Result[email].StatusCode == 200)
+                    // Send email
+                    var response = await client.SendEmailAsync(msg);
+                    var responseBody = await response.Body.ReadAsStringAsync();
+
+                    // Check response
+                    if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
                     {
                         return Ok("OTP sent successfully.");
                     }
                     else
                     {
-                        return BadRequest("Failed to send OTP.");
+                        return BadRequest($"Failed to send OTP. Response code: {response.StatusCode}");
                     }
                 }
                 catch (Exception ex)
@@ -1055,77 +1046,69 @@ namespace BrodClientAPI.Controller
                 // Update the status
                 var updateDefinition = Builders<User>.Update.Set(u => u.Status, "Deactivated");
                 await _context.User.UpdateOneAsync(user => user._id == userId, updateDefinition);
-                
+
+                // Get all admins
                 var admins = await _context.User.Find(user => user.Role == "Admin").ToListAsync();
+
+                // SendGrid API Key from configuration
+                var sendGridApiKey = _configuration["SendGrid:ApiKey"];
+                var fromEmailAddress = _configuration["SendGrid:FromEmailAddress"];
+
+                // Initialize SendGrid client
+                var client = new SendGrid.SendGridClient(sendGridApiKey);
+
                 foreach (var admin in admins)
                 {
-                    // Create the request to send the email message
-                    var request = new SendMessagesRequest
+                    // Prepare email message
+                    var from = new SendGrid.Helpers.Mail.EmailAddress(fromEmailAddress, "Brod System");
+                    var to = new SendGrid.Helpers.Mail.EmailAddress(admin.Email);
+                    var subject = "User Account Deactivation Request";
+
+                    var plainTextContent = $@"
+                User Account Deactivation Request
+
+                Dear Admin,
+
+                The following user has requested to delete their account and delete all associated data:
+
+                - User Email: {user.Email}
+                - Request Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)
+
+                Please take the necessary actions to process this request promptly.
+
+                Best regards,
+                BROD Team";
+
+                    var htmlContent = $@"
+                <html>
+                    <body style='font-family: Arial, sans-serif; color: #000000;'>
+                        <h2 style='color: #000000;'>User Account Deactivation Request</h2>
+                        <p>Dear Admin,</p>
+                        <br><p>The following user has requested to delete their account and delete all associated data:</p>
+                        <ul style='color: #000000;'>
+                            <li><strong>User Email:</strong> {user.Email}</li>
+                            <li><strong>Request Date:</strong> {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} (UTC)</li>
+                        </ul>
+                        <p>Please take the necessary actions to process this request promptly.</p>
+                        <br><p>Best regards,</p>
+                        <p><strong>BROD Team</strong></p>
+                    </body>
+                </html>";
+
+                    var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+
+                    // Send the email
+                    var response = await client.SendEmailAsync(msg);
+
+                    if (response.StatusCode != System.Net.HttpStatusCode.Accepted)
                     {
-                        ApplicationId = _configuration["AWS:PinpointAppId"],
-                        MessageRequest = new MessageRequest
-                        {
-                            Addresses = new Dictionary<string, AddressConfiguration>
-                {
-                    { admin.Email, new AddressConfiguration { ChannelType = ChannelType.EMAIL } }
-                },
-                            MessageConfiguration = new DirectMessageConfiguration
-                            {
-                                EmailMessage = new EmailMessage
-                                {
-                                    FromAddress = _configuration["AWS:FromEmailAddress"],
-                                    SimpleEmail = new SimpleEmail
-                                    {
-                                        Subject = new SimpleEmailPart { Data = "User Account Deactivation Request" },
-                                        HtmlPart = new SimpleEmailPart
-                                        {
-                                            Data = $@"
-                                                    <html>
-                                                        <body style='font-family: Arial, sans-serif; color: #000000;'>
-                                                            <h2 style='color: #000000;'>User Account Deactivation Request</h2>
-                                                            <p>Dear Admin,</p>
-                                                            <p>The following user has requested to delete their account and delete all associated data:</p>
-                                                            <ul style='color: #000000;'>
-                                                                <li><strong>User Email:</strong> {user.Email}</li>
-                                                                <li><strong>Request Date:</strong> {DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")} (UTC)</li>
-                                                            </ul>
-                                                            <p>Please take the necessary actions to process this request promptly.</p>
-                                                            <p>Thank you,</p>
-                                                            <p><strong>Brod Client System</strong></p>
-                                                        </body>
-                                                    </html>"
-                                        },
-                                        TextPart = new SimpleEmailPart
-                                        {
-                                            Data = $@"
-                                                    User Account Deactivation Request
-
-                                                    Dear Admin,
-
-                                                    The following user has requested to delete their account and delete all associated data:
-
-                                                    - User Email: {user.Email}
-                                                    - Request Date: {DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")} (UTC)
-
-                                                    Please take the necessary actions to process this request promptly.
-
-                                                    Thank you,
-                                                    Brod Client System"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    };
-
-                    // Send the email through Pinpoint
-                    var response = await _pinpointClient.SendMessagesAsync(request);
-
-                }                
-
+                        return BadRequest($"Failed to send notification email to admin: {admin.Email}");
+                    }
+                }
 
                 return Ok(new { message = "User deactivated successfully" });
             }
+
 
             [HttpPut("user/delete")]
             public async Task<IActionResult> DeleteUser(string userId)
@@ -1183,9 +1166,81 @@ namespace BrodClientAPI.Controller
                     }
                 }
 
+                if (user.Role == "Client")
+                {
+                    var jobs = await _context.Jobs.Find(job => job.ClientID == user._id).ToListAsync();
+                    if (jobs != null)
+                    {
+                        foreach (var x in jobs)
+                        {
+                            await _context.Jobs.DeleteOneAsync(job => job._id == x._id);
+                        }
+                    }
+
+                    var clientMessages = await _context.ClientMessage.Find(ser => ser.ClientId == user._id).ToListAsync();
+                    if (clientMessages != null)
+                    {
+                        foreach (var x in clientMessages)
+                        {
+                            await _context.ClientMessage.DeleteOneAsync(ser => ser._id == x._id);
+                        }
+                    }
+
+                    var tradieMessages = await _context.TradieMessage.Find(ser => ser.ClientId == user._id).ToListAsync();
+                    if (tradieMessages != null)
+                    {
+                        foreach (var x in tradieMessages)
+                        {
+                            await _context.TradieMessage.DeleteOneAsync(ser => ser._id == x._id);
+                        }
+                    }
+
+                    var notifs = await _context.Notification.Find(ser => ser.userID == user._id).ToListAsync();
+                    if (notifs != null)
+                    {
+                        foreach (var x in notifs)
+                        {
+                            await _context.Notification.DeleteOneAsync(ser => ser._id == x._id);
+                        }
+                    }
+                }
+
                 // Delete the user
                 await _context.User.DeleteOneAsync(user => user._id == userId);
 
+                // SendGrid API Key from configuration
+                var sendGridApiKey = _configuration["SendGrid:ApiKey"];
+                var fromEmailAddress = _configuration["SendGrid:FromEmailAddress"];
+
+                // Initialize SendGrid client
+                var client = new SendGrid.SendGridClient(sendGridApiKey);
+
+                // Prepare email message
+                var from = new SendGrid.Helpers.Mail.EmailAddress(fromEmailAddress, "Brod System");
+                var to = new SendGrid.Helpers.Mail.EmailAddress(user.Email);
+                var subject = "User Account Deactivation";
+
+                var plainTextContent = $@"
+                    Dear User,
+
+                    Your account is already deactivated. For more concerns you can contact us at {fromEmailAddress}
+
+                    Best regards,
+                    BROD Team";
+
+                var htmlContent = $@"
+                    <html>
+                        <body style='font-family: Arial, sans-serif; color: #000000;'>
+                            <p>Dear Admin,</p>
+                            <br><p>Your account is already deactivated. For more concerns you can contact us at {fromEmailAddress}</p>
+                            <br><p>Best regards,</p>
+                            <p><strong>BROD Team</strong></p>
+                        </body>
+                    </html>";
+
+                var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+                
+                
 
                 return Ok(new { message = "User deleted successfully" });
             }
@@ -1193,12 +1248,21 @@ namespace BrodClientAPI.Controller
             [HttpPut("tradie/ScrubData")]
             public async Task<IActionResult> ScrubData()
             {
-                var jobs = await _context.Jobs.Find(job => job.TradieName == "").ToListAsync();
+                var jobs = await _context.Jobs.Find(job => job.ClientName == "").ToListAsync();
                 if (jobs != null)
                 {
                     foreach (var x in jobs)
                     {
                         await _context.Jobs.DeleteOneAsync(job => job._id == x._id);
+                    }
+                }
+
+                var jobs2 = await _context.Jobs.Find(job => job.ClientName == "").ToListAsync();
+                if (jobs2 != null)
+                {
+                    foreach (var x in jobs2)
+                    {
+                        await _context.Jobs.DeleteOneAsync(job2 => job2._id == x._id);
                     }
                 }
 
@@ -1241,7 +1305,67 @@ namespace BrodClientAPI.Controller
             return Ok(new { message = "User connections deleted successfully" });
             }
 
-            private string GenerateJwtToken(User user)
+            //[HttpPut("DeleteById")]
+            //public async Task<IActionResult> DeleteById()
+            //{
+            //    var jobs = await _context.Jobs.Find(job => job.TradieName == "").ToListAsync();
+            //    if (jobs != null)
+            //    {
+            //        foreach (var x in jobs)
+            //        {
+            //            await _context.Jobs.DeleteOneAsync(job => job._id == x._id);
+            //        }
+            //    }
+
+            //    var services = await _context.Services.Find(ser => ser.UserID == "67347d2c7468915d82d71b23").ToListAsync();
+            //    if (services != null)
+            //    {
+            //        foreach (var x in services)
+            //        {
+            //            await _context.Services.DeleteOneAsync(ser => ser._id == x._id);
+            //        }
+            //    }
+
+            //    var clientMessages = await _context.ClientMessage.Find(ser => ser.TradieId == "67347d2c7468915d82d71b23").ToListAsync();
+            //    if (clientMessages != null)
+            //    {
+            //        foreach (var x in clientMessages)
+            //        {
+            //            await _context.ClientMessage.DeleteOneAsync(ser => ser._id == x._id);
+            //        }
+            //    }
+
+            //    var tradieMessages = await _context.TradieMessage.Find(ser => ser.TradieId == "67347d2c7468915d82d71b23").ToListAsync();
+            //    if (tradieMessages != null)
+            //    {
+            //        foreach (var x in tradieMessages)
+            //        {
+            //            await _context.TradieMessage.DeleteOneAsync(ser => ser._id == x._id);
+            //        }
+            //    }
+
+            //    var notifs = await _context.Notification.Find(ser => ser.userID == "67347d2c7468915d82d71b23").ToListAsync();
+            //    if (notifs != null)
+            //    {
+            //        foreach (var x in notifs)
+            //        {
+            //            await _context.Notification.DeleteOneAsync(ser => ser._id == x._id);
+            //        }
+            //    }
+
+            //    var reviews = await _context.Rating.Find(ser => ser.tradieId == "67347d2c7468915d82d71b23").ToListAsync();
+            //    if (reviews != null)
+            //    {
+            //        foreach (var x in reviews)
+            //        {
+            //            await _context.Notification.DeleteOneAsync(ser => ser._id == x._id);
+            //        }
+            //    }
+
+            //return Ok(new { message = "User connections deleted successfully" });
+            //}
+
+        private string GenerateJwtToken(User user)
             {
                 var tokenHandler = new JwtSecurityTokenHandler();
                 var secretKey = _configuration["JwtSettings:SecretKey"];

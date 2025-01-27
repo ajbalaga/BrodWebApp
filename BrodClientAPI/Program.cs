@@ -1,9 +1,13 @@
 using System.Text;
 using BrodClientAPI.Controller;
 using BrodClientAPI.Data;
+using BrodClientAPI.Models;
+using BrodClientAPI.Service;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
+using SendGrid;
+using Twilio;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +22,18 @@ builder.Services.AddSingleton<IMongoClient, MongoClient>(sp =>
     mongoClientSettings.MinConnectionPoolSize = 50;  // Optional: Set a minimum pool size
     return new MongoClient(mongoClientSettings);
 });
+
+// Configure SendGrid
+builder.Services.AddSingleton<ISendGridClient>(new SendGridClient(builder.Configuration["SendGrid:ApiKey"]));
+builder.Services.Configure<SendGridSettings>(builder.Configuration.GetSection("SendGrid"));
+
+// Configure Twilio
+TwilioClient.Init(
+    builder.Configuration["Twilio:AccountSID"],
+    builder.Configuration["Twilio:AuthToken"]
+);
+builder.Services.AddScoped<TwilioService>();
+
 
 // Register the custom MongoDB context
 builder.Services.AddScoped<ApiDbContext>();
@@ -50,7 +66,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "Brod Client API", Version = "v1" });
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "Brod API", Version = "v1" });
 
     // Configure Swagger to use JWT Bearer tokens
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
@@ -126,7 +142,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(options =>
     {
         options.DefaultModelsExpandDepth(-1);
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Brod Client API V1");
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Brod API V1");
     });
 }
 else if (app.Environment.IsProduction())
@@ -136,7 +152,7 @@ else if (app.Environment.IsProduction())
     app.UseSwaggerUI(options =>
     {
         options.DefaultModelsExpandDepth(-1);
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Brod Client API V1");
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Brod API V1");
     });
 
     app.UseExceptionHandler("/Home/Error");
