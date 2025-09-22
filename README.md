@@ -33,7 +33,7 @@
 | Layer        | Technology     |
 |--------------|----------------|
 | **Backend**  | C# (.NET Core) |
-| **Frontend** | React.js (Separate projecr) |
+| **Frontend** | React.js (Separate project) |
 | **Database** | MongoDB|
 | **Real-time Chat** | C# and ReactJS |
 | **SMS** | Twilio |
